@@ -1,0 +1,39 @@
+<!DOCTYPE HTML>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Moi, mon ouïe - <%= @item[:title] %></title>
+    <link rel="stylesheet" type="text/css" href="/style.css" media="screen">
+    <meta name="generator" content="nanoc 3.1.7">
+  </head>
+
+  <body>
+    <div id="main">
+      <% if post = Post.of(@item) %>
+        <h1><%= post.title %></h1>
+
+        <div id="post-date">
+          <%= post.date %>
+        </div>
+      <% end %>
+
+      <%= yield %>
+    </div>
+
+    <div id="sidebar">
+      <h2><a href="/index.html">Home</a></h2>
+
+      <h2>Sons récents</h2>
+      <ul>
+        <% Post.all(@items)[0, 10].each do |post| %>
+          <li><%= post.link %></li>
+        <% end %>
+      </ul>
+
+      <h2>Moi</h2>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+      </ul>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,22 @@
+---
+title: Home
+---
+
+<h1>À propos de Mon ouïe</h1>
+
+<p>Mon ouïe is a random nick, which can be found with various spellings depending
+on the available characters — "Mon Ouïe", "Mon_Ouie", "mon.ouie", and "Mon-Ouie"
+being some of them.</p>
+
+<p>It usually refers to a mainly Ruby programmer who programs with the sole purpose
+to program — though some dictonaries claim it refers to one's ability to
+perceive sounds. It is sometimes said to be mysterious. The "about" page on your
+left will tell you many things about it, so as to refute this assertion!</p>
+
+<h2>Posts</h2>
+
+<ul>
+  <% Post.all(@items).each do |post| %>
+    <li><%= post.link %> <span class="date-info">(<%= post.date %>)</span></li>
+  <% end %>
+</ul>

@@ -1,0 +1,658 @@
+<!DOCTYPE HTML>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Moi, mon ouïe - Rubinius Debugging API</title>
+    <link rel="stylesheet" type="text/css" href="/style.css" media="screen">
+    <meta name="generator" content="nanoc 3.1.7">
+  </head>
+
+  <body>
+    <div id="main">
+      
+        <h1>Rubinius Debugging API</h1>
+
+        <div id="post-date">
+          Monday 20 June 2011
+        </div>
+      
+
+      <p>Most Ruby implementations provide an API to write a debugger, if not a debugger
+itself. MRI has a tracer API, also implemented by JRuby:</p>
+
+<pre class="ruby"><code>set_trace_func proc { |event, *other_stuff|
+  <span class="c"># do stuff</span>
+}
+</code></pre>
+
+<p>This allows to trace whatever happens, and to stop the process to debug it. One
+can implement a debugger with this, for instance as debug.rb from stdlib
+does. Rubinius, however does not implement a such API. But Rubinius being all
+Ruby, one can probably write a such thing — or a better way one — just in Ruby
+:)</p>
+
+<p>It is indeed posible to write a debugger for Rubinius in Ruby. Rubinius even
+comes with one that introduces itself as a sample to show how to write a
+debugger:</p>
+
+<pre class="ruby"><code><span class="c">#</span>
+<span class="c"># The Rubinius reference debugger.</span>
+<span class="c">#</span>
+<span class="c"># This debugger is wired into the debugging APIs provided by Rubinius.</span>
+<span class="c"># It serves as a simple, builtin debugger that others can use as</span>
+<span class="c"># an example for how to build a better debugger.</span>
+<span class="c">#</span>
+
+<span class="r">class</span> <span class="cl">Rubinius::Debugger</span>
+  <span class="c"># Code is here :)</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>I’m probably not good at this, but it’s quite hard for me to figure out how this
+works, so I write about it so I can share my knowledge with the world… and
+understand the code I will write using this knowledge. :)</p>
+
+<h2 id="a-simple-debugger">A simple debugger</h2>
+
+<p>I will try to reduce the Rubinius debugger to the simplest code that works, so
+that it can easily be used as a template. At the end of this section, the
+debugger will not really be useful. So let’s only keep a block in our Debugger
+object. This block will be called when a breakpoint is reached.</p>
+
+<pre class="ruby"><code><span class="r">class</span> <span class="cl">Debugger</span>
+  <span class="r">def</span> <span class="fu">initialize</span>(&amp;block)
+    <span class="iv">@block</span> = block
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>Now that we have this <em>very</em> useful class, let’s add some more features to it!
+Rubinius uses another thread for debugging. Using one of Rubinius’ classes
+(<code>Rubinius::Channel</code>), this thread will be fed with information about the
+debugged program. <code>Debugger#listen</code> will just be a loop that waits for a
+breakpoint to be reached before calling our block.</p>
+
+<pre class="ruby"><code><span class="r">def</span> <span class="fu">spawn_thread</span>
+  <span class="r">return</span> <span class="r">if</span> <span class="iv">@thread</span>
+
+  <span class="iv">@local_channel</span> = <span class="co">Rubinius</span>::<span class="co">Channel</span>.new
+
+  <span class="iv">@thread</span> = <span class="co">Thread</span>.new <span class="r">do</span>
+    <span class="r">begin</span>
+      listen
+    <span class="r">rescue</span> <span class="co">Exception</span> =&gt; ex <span class="c"># avoid silent fails</span>
+      <span class="gv">$stdout</span>.puts <span class="s"><span class="dl">"</span><span class="il"><span class="idl">#{</span>ex.class<span class="idl">}</span></span><span class="k">: </span><span class="il"><span class="idl">#{</span>ex<span class="idl">}</span></span><span class="dl">"</span></span>
+    <span class="r">end</span>
+  <span class="r">end</span>
+
+  <span class="c"># This tells Rubinius what channel to use to send information about the</span>
+  <span class="c"># debugged program.</span>
+  <span class="iv">@thread</span>.setup_control! <span class="iv">@local_channel</span>
+<span class="r">end</span>
+private <span class="sy">:spawn_thread</span>
+
+<span class="r">def</span> <span class="fu">listen</span>
+  loop <span class="r">do</span>
+    <span class="c"># Get information.</span>
+    <span class="c"># Rubinius will send us 4 objects:</span>
+    <span class="c">#   1. A breakpoint: an aribtrary object which we can set.</span>
+    <span class="c">#   2. The thread where the event occurred</span>
+    <span class="c">#   3. The Rubinius::Channel that sent the event</span>
+    <span class="c">#   4. The backtrace, as an array of Rubinius::Location objects</span>
+    bp, thread, chan, locs = <span class="iv">@local_channel</span>.receive
+
+    <span class="c"># Call our block (which does not care about the channel)!</span>
+    <span class="iv">@block</span>.call bp, thread, locs
+
+    <span class="c"># Tell the channel we are done with it</span>
+    chan &lt;&lt; <span class="pc">true</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>Now, we are about to be able to start our debugger. To achieve this, we will
+need a breakpoint class — but let’s just make it an empty class for now.</p>
+
+<pre class="ruby"><code><span class="r">class</span> <span class="cl">Breakpoint</span>
+  <span class="r">def</span> <span class="fu">initialize</span>(method, line)
+    <span class="c"># There will be code here!</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>When starting the debugger we must first, of course, spawn our debugging thread,
+and then send information to it. Then we will set the debugger thread of the
+current thread to the thread we created.</p>
+
+<pre class="ruby"><code><span class="r">def</span> <span class="fu">start</span>
+  <span class="c"># Spawn debugging thread if needed.</span>
+  spawn_thread
+
+  <span class="c"># Get the backtrace.</span>
+  locs    = <span class="co">Rubinius</span>::<span class="co">VM</span>.backtrace(<span class="i">1</span>, <span class="pc">true</span>)
+
+  <span class="c"># Get a CompiledMethod object to create our breakpoint.method</span>
+  method  = <span class="co">Rubinius</span>::<span class="co">CompiledMethod</span>.of_sender
+  bp      = <span class="co">Breakpoint</span>.new(method, locs.first.line)
+
+  <span class="c"># Create a channel to communicate with our thread.</span>
+  channel = <span class="co">Rubinius</span>::<span class="co">Channel</span>.new
+
+  <span class="c"># Send our objects</span>
+  <span class="iv">@local_channel</span>.send <span class="co">Rubinius</span>::<span class="co">Tuple</span>[bp, <span class="co">Thread</span>.current, channel, locs]
+
+  <span class="c"># Wait that the thread is done</span>
+  channel.receive
+
+  <span class="c"># Set the debugger thread.</span>
+  <span class="co">Thread</span>.current.set_debugger_thread <span class="iv">@thread</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>Now we can try this code, and see that our callback gets called! :)</p>
+
+<pre class="ruby"><code>dbg = <span class="co">Debugger</span>.new <span class="r">do</span> |bp, thread, locs|
+  loc = locs.first
+  puts <span class="s"><span class="dl">"</span><span class="k">Reached breakpoint at </span><span class="il"><span class="idl">#{</span>loc.file<span class="idl">}</span></span><span class="k">:</span><span class="il"><span class="idl">#{</span>loc.line<span class="idl">}</span></span><span class="dl">"</span></span>
+<span class="r">end</span>
+
+dbg.start
+</code></pre>
+
+<p>And we get the expected output (with probably another line number):</p>
+
+<pre class="term"><code>Reached breakpoint at debugger.rb:100
+</code></pre>
+
+<h2 id="adding-breakpoints">Adding breakpoints</h2>
+
+<p>A debugger is only useful when it can stop execution at some point. Of course we
+don’t have to send debugging information to the debugger ourselves — or this
+wouldn’t be a debugging API… — and we can use Rubinius’
+<code>CompiledMethod#set_breakpoint</code> to tell Rubinius “I want you to tell my
+debugger thread when this line is reached; also, give it a reference to
+me.”. Let’s try this!</p>
+
+<pre class="ruby"><code><span class="r">class</span> <span class="cl">Breakpoint</span>
+  <span class="r">def</span> <span class="fu">initialize</span>(method, line)
+    <span class="c"># Call method.executable if an UnboundMethod or a Method is passed.</span>
+    <span class="iv">@method</span> = <span class="r">case</span> method
+              <span class="r">when</span> <span class="co">Rubinius</span>::<span class="co">Executable</span> <span class="r">then</span> method
+              <span class="r">else</span> method.executable
+              <span class="r">end</span>
+
+    <span class="c"># Get ip of the line (used to set and remove the breakpoint)</span>
+    <span class="c"># (line is relative to the beginning of the file, not to the method)</span>
+    <span class="iv">@ip</span> = <span class="iv">@method</span>.first_ip_on_line(line)
+  <span class="r">end</span>
+
+  <span class="r">def</span> <span class="fu">enable</span>
+    <span class="c"># Set the breakpoint of that line to ourselves</span>
+    <span class="iv">@method</span>.set_breakpoint <span class="iv">@ip</span>, <span class="pc">self</span>
+  <span class="r">end</span>
+
+  <span class="r">def</span> <span class="fu">disable</span>
+    <span class="c"># Remove the breakpoint on that line</span>
+    <span class="iv">@method</span>.clear_breakpoint <span class="iv">@ip</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>And now, we can try to see if our callback gets called!</p>
+
+<pre class="ruby"><code><span class="r">class</span> <span class="cl">Foo</span>
+  <span class="r">def</span> <span class="fu">initialize</span>(x)
+    <span class="iv">@x</span> = x
+  <span class="r">end</span>
+<span class="r">end</span>
+
+<span class="co">Breakpoint</span>.new(<span class="co">Foo</span>.instance_method(<span class="sy">:initialize</span>), <span class="pc">__LINE__</span> - <span class="i">4</span>).enable
+
+<span class="co">Foo</span>.new <span class="i">10</span>
+</code></pre>
+
+<p>The result should still be what you expect:</p>
+
+<pre class="term"><code>Reached breakpoint at debugger.rb:96
+</code></pre>
+
+<h2 id="getting-a-binding-object">Getting a binding object</h2>
+
+<p>Binding objects can be very useful in a debugger: when you get a binding from
+the debugged program, you can run arbitrary code in its context to get any
+information you may want about it.</p>
+
+<p>We don’t have a binding object now, but that won’t stop us! We have location
+objects, which can be used to get a such binding as needed.</p>
+
+<pre class="ruby"><code><span class="r">class</span> <span class="cl">Frame</span>
+  <span class="r">def</span> <span class="fu">initialize</span>(loc)
+    <span class="iv">@loc</span> = loc
+  <span class="r">end</span>
+
+  attr_reader <span class="sy">:loc</span>
+
+  <span class="r">def</span> <span class="fu">run</span>(code)
+    eval(code, binding)
+  <span class="r">end</span>
+
+  <span class="r">def</span> <span class="fu">binding</span>
+    <span class="iv">@binding</span> ||= <span class="co">Binding</span>.setup(<span class="iv">@loc</span>.variables,
+                               <span class="iv">@loc</span>.methods,
+                               <span class="iv">@loc</span>.static_scope)
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>You can try to print, for instance, what instance variables are defined at that
+point:</p>
+
+<pre class="ruby"><code>dbg = <span class="co">Debugger</span>.new <span class="r">do</span> |bp, thread, locs|
+  frame = <span class="co">Debugger</span>::<span class="co">Frame</span>.new(locs.first)
+  puts <span class="s"><span class="dl">"</span><span class="k">Instance variables: </span><span class="il"><span class="idl">#{</span>fram.run(<span class="s"><span class="dl">'</span><span class="k">instance_variables</span><span class="dl">'</span></span>).inspect<span class="idl">}</span></span><span class="dl">"</span></span>
+<span class="r">end</span>
+
+dbg.start
+
+<span class="r">class</span> <span class="cl">Foo</span>
+  <span class="r">def</span> <span class="fu">initialize</span>(x)
+    <span class="iv">@x</span> = x
+    p <span class="iv">@x</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+
+<span class="c"># Beware: __LINE__ changed between those two lines.</span>
+<span class="co">Breakpoint</span>.new(<span class="co">Foo</span>.instance_method(<span class="sy">:initialize</span>), <span class="pc">__LINE__</span> - <span class="i">6</span>).enable
+<span class="co">Breakpoint</span>.new(<span class="co">Foo</span>.instance_method(<span class="sy">:initialize</span>), <span class="pc">__LINE__</span> - <span class="i">6</span>).enable
+
+<span class="co">Foo</span>.new <span class="i">10</span>
+</code></pre>
+
+<p>The output being simply:</p>
+
+<pre class="term"><code>Instance variables: []
+Instance variables: []
+Instance variables: ["@x"]
+10
+</code></pre>
+
+<h2 id="defered-breakpoints">Defered breakpoints</h2>
+
+<p>Breaking when you already have a method object is easy. However, when you do not
+have a such object — because the method isn’t defined yet — it is not as easy to
+do. Still, it is not hard. :)</p>
+
+<p>Since the method isn’t defined, you need to check if it has been defined
+whenever new methods could have been added. We can simply add a hook for that in
+our initialize method, and create a class for defered breakpoint.</p>
+
+<p>However, what happens when a method is defined and then gets overriden (which
+happens when a class is monkey-patched or subclassed)? In that case, we would
+definitely want the breakpoint to apply on the new method. So in this example
+we’ll just always keep a reference to the defered breapkoint — even though one
+may want to implement something smarter than this.</p>
+
+<pre class="ruby"><code><span class="r">class</span> <span class="cl">DeferedBreakpoint</span>
+  <span class="r">def</span> <span class="fu">initialize</span>(klass, method, class_method, line)
+    <span class="iv">@klass</span>        = klass
+    <span class="iv">@method</span>       = method
+    <span class="iv">@class_method</span> = class_method
+    <span class="iv">@line</span>         = line
+  <span class="r">end</span>
+
+  <span class="c"># Try to create a Breakpoint object</span>
+  <span class="r">def</span> <span class="fu">resolve</span>
+    <span class="c"># Try to get the class that defines the method from its name</span>
+    klass = <span class="iv">@klass</span>.split(<span class="s"><span class="dl">'</span><span class="k">::</span><span class="dl">'</span></span>).inject(<span class="co">Object</span>) <span class="r">do</span> |mod, const_name|
+      <span class="r">if</span> mod.is_a? <span class="co">Module</span> <span class="r">and</span> mod.const_defined?(const_name)
+        mod.const_get(const_name)
+      <span class="r">else</span>
+        <span class="r">break</span>
+      <span class="r">end</span>
+    <span class="r">end</span>
+
+    <span class="c"># Could not find the class, or its neither a class nor a module</span>
+    <span class="r">return</span> <span class="r">unless</span> klass <span class="r">and</span> klass.is_a? <span class="co">Module</span>
+
+    <span class="c"># Try to get the method</span>
+    method = <span class="r">if</span> <span class="iv">@class_method</span>
+               klass.method(<span class="iv">@method</span>) <span class="r">if</span> klass.respond_to?(<span class="iv">@method</span>, <span class="pc">true</span>)
+             <span class="r">else</span>
+               <span class="r">if</span> klass.method_defined?(<span class="iv">@method</span>) ||
+                   klass.private_method_defined?(<span class="iv">@method</span>) ||
+                   klass.private_method_defined?(<span class="iv">@method</span>)
+                 klass.instance_method(<span class="iv">@method</span>)
+               <span class="r">end</span>
+             <span class="r">end</span>
+
+    <span class="c"># No such method</span>
+    <span class="r">return</span> <span class="r">unless</span> method
+
+    <span class="c"># Everything is fine, return the breakpoint</span>
+    <span class="co">Breakpoint</span>.new(method, <span class="iv">@line</span>)
+  <span class="r">end</span>
+<span class="r">end</span>
+
+<span class="r">def</span> <span class="fu">initialize</span>(&amp;block)
+  <span class="c"># Same as before</span>
+  <span class="iv">@block</span>   = block
+  <span class="iv">@thread</span>  = <span class="pc">nil</span>
+
+  <span class="c"># Keep a reference to each defered breapkoint</span>
+  <span class="iv">@defered_breakpoints</span> = []
+
+  <span class="c"># Define a hook to create actual breakpoints from our defered</span>
+  <span class="c"># breapkoints.</span>
+  hook = proc { check_defered_breakpoints }
+
+  <span class="co">Rubinius</span>::<span class="co">CodeLoader</span>.loaded_hook.add hook
+  <span class="co">Rubinius</span>.add_method_hook.add hook
+<span class="r">end</span>
+
+<span class="r">def</span> <span class="fu">check_defered_breakpoints</span>
+  <span class="iv">@defered_breakpoints</span>.each <span class="r">do</span> |current_bp|
+    <span class="c"># Just create a breakpoint for each entry that maps to an actual</span>
+    <span class="c"># method call.</span>
+    <span class="r">if</span> actual_bp = current_bp.resolve
+      actual_bp.enable
+    <span class="r">end</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+
+<span class="c"># Helper method that creates a defered breakpoint, and resolves it right</span>
+<span class="c"># away if possible.</span>
+<span class="r">def</span> <span class="fu">add_breakpoint</span>(klass, method, class_method, line)
+  bp = <span class="co">DeferedBreakpoint</span>.new(klass, method, class_method, line)
+
+  <span class="iv">@defered_breakpoints</span> &lt;&lt; bp
+
+  <span class="r">if</span> resolved_bp = bp.resolve
+    resolved_bp.enable
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>And just in case you would not trust me when I say it works:</p>
+
+<pre class="ruby"><code>dbg = <span class="co">Debugger</span>.new <span class="r">do</span> |bp, thread, locs|
+  loc = locs.first
+  puts <span class="s"><span class="dl">"</span><span class="k">reached breakpoint at </span><span class="il"><span class="idl">#{</span>loc.file<span class="idl">}</span></span><span class="k">:</span><span class="il"><span class="idl">#{</span>loc.line<span class="idl">}</span></span><span class="dl">"</span></span>
+<span class="r">end</span>
+
+dbg.start
+dbg.add_breakpoint <span class="s"><span class="dl">"</span><span class="k">Foo</span><span class="dl">"</span></span>, <span class="sy">:initialize</span>, <span class="pc">false</span>, <span class="i">0</span>
+
+<span class="r">class</span> <span class="cl">Foo</span>
+  <span class="r">def</span> <span class="fu">initialize</span>(x)
+    <span class="iv">@x</span> = x
+  <span class="r">end</span>
+<span class="r">end</span>
+
+<span class="co">Foo</span>.new <span class="s"><span class="dl">"</span><span class="k">3</span><span class="dl">"</span></span>
+</code></pre>
+
+<pre class="term"><code>reached breakpoint at rbx_trace.rb:159
+reached breakpoint at rbx_trace.rb:164
+</code></pre>
+
+<h2 id="stop-at-next-line">Stop at next line</h2>
+
+<p>Often, the user will not simply want to break on a method. He will want to go to
+the next line, and see what changed at that line. Thus, we will need to break on
+the next lien. This is not as easy to do as it sounds: what’s the next line this
+example?</p>
+
+<pre class="ruby"><code>loop <span class="r">do</span>
+  puts <span class="i">3</span>
+  puts <span class="i">4</span> <span class="c"># &lt;= You are here</span>
+<span class="r">end</span>
+
+puts <span class="i">5</span>
+</code></pre>
+
+<p>It is indeed the line that says “puts 3”, since we are in a loop. Such
+structures must be taken in acount when implementing stepping. In fact, we’ll
+use the bytecode rubinius generated to figure out what’s the next line.</p>
+
+<p>Once we did that, we can just add a breakpoint which we’ll remember to
+remove. This involves changing our <code>#listen</code> method, which will just clear our
+array of temporary breakpoints every time we reach one.</p>
+
+<pre class="ruby"><code><span class="r">def</span> <span class="fu">listen</span>
+  loop <span class="r">do</span>
+    bp, thread, chan, locs = <span class="iv">@local_channel</span>.receive
+
+    <span class="iv">@temporary_breakpoints</span>.each(&amp;<span class="sy">:disable</span>)
+    <span class="iv">@temporary_breakpoints</span>.clear
+
+    <span class="iv">@block</span>.call bp, thread, locs
+
+    chan &lt;&lt; <span class="pc">true</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>The real thing is adding the breakpoint. We’ll create a <code>next(frames)</code> method,
+where frames is the backtrace as an array of <code>Frame</code> objects (that is,
+<code>locs.map { |l| Frame.new(l) }</code>). It will just try to see if there’s a line
+after the current one. If there is, then it will put a breakpoint on the next
+relevant instruction. If there is no such instruction, it will return back to
+the previous element of the backtrace.</p>
+
+<pre class="ruby"><code><span class="r">def</span> <span class="fu">next!</span>(frames)
+  frame = frames.first
+  exec  = frames[<span class="i">0</span>].loc.method
+
+  <span class="c"># I don't know what "fin" stands for in the actual Rubinius source code.</span>
+  <span class="c"># I will assume it is the French for "end", "end" not being allowed as a</span>
+  <span class="c"># variable name. :)</span>
+  <span class="c">#</span>
+  <span class="c"># It contains the location of the next line. It will thus be nil if this</span>
+  <span class="c"># is the last line.</span>
+  fin = exec.first_ip_on_line(frame.loc.line + <span class="i">1</span>, frame.loc.ip)
+
+  <span class="r">if</span> fin
+    <span class="c"># More work to do. :(</span>
+    set_breakpoints_between(exec, frame.loc.ip, fin)
+  <span class="r">else</span>
+    <span class="r">if</span> frames[<span class="i">1</span>] <span class="c"># If there's a previous element in the backtrace</span>
+      <span class="c"># Create a temporary breakpoint on that element.</span>
+      bp = <span class="co">Breakpoint</span>.new(frames[<span class="i">1</span>].loc.method, frames[<span class="i">1</span>].loc.ip, <span class="pc">true</span>)
+      bp.enable
+      <span class="iv">@temporary_breakpoints</span> &lt;&lt; bp
+      bp
+    <span class="r">end</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+
+<span class="r">def</span> <span class="fu">set_breakpoints_between</span>(exec, start, fin)
+  <span class="c"># goto_between will return an array with the locations of the places we</span>
+  <span class="c"># should but a temporary breakpoint at. The important part of the work</span>
+  <span class="c"># isn't here yet. :p</span>
+  goto_between(exec, start, fin).each <span class="r">do</span> |ip|
+    bp = <span class="co">Breakpoint</span>.new(exec, ip, <span class="pc">true</span>)
+    bp.enable
+    <span class="iv">@temporary_breakpoints</span> &lt;&lt; bp
+  <span class="r">end</span>
+<span class="r">end</span>
+
+<span class="r">def</span> <span class="fu">next_interesting</span>(exec, ip)
+  <span class="c"># Not important yet. We'll just ignore pop instructions.</span>
+  pop = <span class="co">Rubinius</span>::<span class="co">InstructionSet</span>.opcodes_map[<span class="sy">:pop</span>]
+
+  <span class="r">if</span> exec.iseq[ip] == pop
+    ip + <span class="i">1</span>
+  <span class="r">else</span>
+    ip
+  <span class="r">end</span>
+<span class="r">end</span>
+
+<span class="r">def</span> <span class="fu">goto_between</span>(exec, start, fin)
+  <span class="c"># This is where we will do the job!</span>
+  <span class="c"># If we reach one of those goto instructions, we'll put a breakpoint</span>
+  <span class="c"># on their target; if not, we just continue</span>
+
+  goto = <span class="co">Rubinius</span>::<span class="co">InstructionSet</span>.opcodes_map[<span class="sy">:goto</span>]
+  git  = <span class="co">Rubinius</span>::<span class="co">InstructionSet</span>.opcodes_map[<span class="sy">:goto_if_true</span>]
+  gif  = <span class="co">Rubinius</span>::<span class="co">InstructionSet</span>.opcodes_map[<span class="sy">:goto_if_false</span>]
+
+  iseq = exec.iseq
+
+  i = start
+  <span class="r">while</span> i &lt; fin <span class="c"># Iterate over instructions</span>
+    op = iseq[i]
+
+    <span class="c"># Check if we reach a goto.</span>
+    <span class="r">case</span> op
+    <span class="r">when</span> goto
+      <span class="r">return</span> [next_interesting(exec, iseq[i + <span class="i">1</span>])]
+    <span class="r">when</span> git, gif
+      <span class="r">return</span> [next_interesting(exec, iseq[i + <span class="i">1</span>]),
+              next_interesting(exec, iseq[i + <span class="i">2</span>])]
+    <span class="r">end</span>
+
+    <span class="c"># Move to the next instruction. :)</span>
+    op = <span class="co">Rubinius</span>::<span class="co">InstructionSet</span>[op]
+    i += op.arg_count + <span class="i">1</span>
+  <span class="r">end</span>
+
+  <span class="c"># Nothing, just return the instruction we had initially found.</span>
+  [next_interesting(exec, fin)]
+<span class="r">end</span>
+</code></pre>
+
+<p>Here’s a test that will make us go to next if self.class.name is “Foo” (I
+simply avoided checking for a constant that could possibly not exist :p):</p>
+
+<pre class="ruby"><code>dbg = <span class="co">Debugger</span>.new <span class="r">do</span> |bp, thread, locs|
+  loc = locs.first
+  puts <span class="s"><span class="dl">"</span><span class="k">reached breakpoint at </span><span class="il"><span class="idl">#{</span>loc.file<span class="idl">}</span></span><span class="k">:</span><span class="il"><span class="idl">#{</span>loc.line<span class="idl">}</span></span><span class="dl">"</span></span>
+
+  <span class="r">if</span> <span class="co">Debugger</span>::<span class="co">Frame</span>.new(loc).run(<span class="s"><span class="dl">"</span><span class="k">self.class.name</span><span class="dl">"</span></span>) == <span class="s"><span class="dl">"</span><span class="k">Foo</span><span class="dl">"</span></span>
+    dbg.next! locs.map { |l| <span class="co">Debugger</span>::<span class="co">Frame</span>.new(l) }
+  <span class="r">end</span>
+<span class="r">end</span>
+
+dbg.start
+dbg.add_breakpoint <span class="s"><span class="dl">"</span><span class="k">Foo</span><span class="dl">"</span></span>, <span class="sy">:initialize</span>, <span class="pc">false</span>, <span class="i">0</span>
+
+<span class="r">class</span> <span class="cl">Foo</span>
+  <span class="r">def</span> <span class="fu">initialize</span>(x)
+    <span class="iv">@x</span> = x
+    <span class="iv">@x</span>
+    <span class="i">3</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+
+<span class="co">Foo</span>.new <span class="s"><span class="dl">"</span><span class="k">3</span><span class="dl">"</span></span>
+<span class="i">3</span>
+<span class="i">4</span> <span class="c"># Random instructions to see if something happens.</span>
+<span class="i">5</span>
+</code></pre>
+
+<pre class="term"><code>reached breakpoint at rbx_trace.rb:240
+reached breakpoint at rbx_trace.rb:245
+reached breakpoint at rbx_trace.rb:246
+reached breakpoint at rbx_trace.rb:247
+reached breakpoint at rbx_trace.rb:251
+</code></pre>
+
+<h2 id="stepping-into-code">Stepping into code</h2>
+
+<p>Stepping is pretty similar to the next command. The difference is that it steps
+into method calls that can be seen. Regarding the implementation, there’s quite
+an easy way to step: instead of sending <code>true</code> to a channel, we’ll send
+<code>:step</code>, and Rubinius will deal with it for us.</p>
+
+<pre class="ruby"><code>attr_accessor <span class="sy">:stepping</span>
+<span class="r">alias</span> <span class="fu">stepping?</span> <span class="fu">stepping</span>
+
+<span class="r">def</span> <span class="fu">listen</span>
+  loop <span class="r">do</span>
+    bp, thread, chan, locs = <span class="iv">@local_channel</span>.receive
+
+    <span class="iv">@temporary_breakpoints</span>.each(&amp;<span class="sy">:disable</span>)
+    <span class="iv">@temporary_breakpoints</span>.clear
+
+    <span class="iv">@block</span>.call bp, thread, locs
+
+    <span class="c"># New magic here: step if stepping is true</span>
+    <span class="r">if</span> stepping?
+      chan &lt;&lt; <span class="sy">:step</span>
+      <span class="iv">@stepping</span> = <span class="pc">false</span>
+    <span class="r">else</span>
+      chan &lt;&lt; <span class="pc">true</span>
+    <span class="r">end</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+
+<span class="c"># So, this is just the same as next!, except we set stepping to true.</span>
+<span class="r">def</span> <span class="fu">step!</span>(frames)
+  next! frames
+  <span class="pc">self</span>.stepping = <span class="pc">true</span>
+<span class="r">end</span>
+</code></pre>
+
+<pre class="ruby"><code>dbg = <span class="co">Debugger</span>.new <span class="r">do</span> |bp, thread, locs|
+  loc = locs.first
+  puts <span class="s"><span class="dl">"</span><span class="k">reached breakpoint at </span><span class="il"><span class="idl">#{</span>loc.file<span class="idl">}</span></span><span class="k">:</span><span class="il"><span class="idl">#{</span>loc.line<span class="idl">}</span></span><span class="dl">"</span></span>
+
+  <span class="r">if</span> loc.method.name == <span class="sy">:start</span>
+    dbg.step! locs.map { |l| <span class="co">Debugger</span>::<span class="co">Frame</span>.new(l) }
+  <span class="r">end</span>
+<span class="r">end</span>
+
+dbg.start <span class="c"># line 268</span>
+dbg.add_breakpoint <span class="s"><span class="dl">"</span><span class="k">Foo</span><span class="dl">"</span></span>, <span class="sy">:start</span>, <span class="pc">true</span>, <span class="i">0</span>
+
+<span class="r">class</span> <span class="cl">Foo</span>
+  <span class="r">def</span> <span class="pc">self</span>.<span class="fu">fibo</span>(n)
+    <span class="r">case</span> n
+    <span class="r">when</span> <span class="i">0</span>, <span class="i">1</span> <span class="r">then</span> <span class="i">1</span>
+    <span class="r">else</span> fibo(n - <span class="i">1</span>) + fibo(n - <span class="i">2</span>) <span class="c"># line 273</span>
+    <span class="r">end</span>
+  <span class="r">end</span>
+
+  <span class="r">def</span> <span class="pc">self</span>.<span class="fu">start</span>
+    fibo <span class="i">10</span> <span class="c"># line 280</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+
+<span class="co">Foo</span>.start
+</code></pre>
+
+<pre class="term"><code>reached breakpoint at rbx_trace.rb:268
+reached breakpoint at rbx_trace.rb:280
+reached breakpoint at rbx_trace.rb:273
+</code></pre>
+
+<p>Had we not enabled stepping, we would not have reached a breakpoint at line
+273. The program would have stopped directly, without letting you inspect code
+in Foo.fibo.</p>
+
+<h2 id="conlusion">Conlusion</h2>
+
+<p>There’s more to know to write a real debugger, and the debugger provided by
+Rubinius uses more than the features I explained. This can still be enough to
+understand how to create a such debugger, and how the one that Rubinius contains
+basically works — and you can just read its source code if you want to know
+more.</p>
+    </div>
+
+    <div id="sidebar">
+      <h2><a href="/index.html">Home</a></h2>
+
+      <h2>Sons récents</h2>
+      <ul>
+        
+          <li><a href="/posts/debugger.html">Rubinius Debugging API</a></li>
+        
+      </ul>
+
+      <h2>Moi</h2>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+      </ul>
+    </div>
+  </body>
+</html>
