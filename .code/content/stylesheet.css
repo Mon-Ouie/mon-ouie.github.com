@@ -127,7 +127,7 @@ code .idl { font-weight: bold;                 }
 code .dl  { font-weight: bold;                 }
 
 code {
-  font: 15px Monaco, 'Courier New', 'Terminal', monospace;
+  font: 13px Monaco, 'Courier New', 'Terminal', monospace;
 }
 
 pre {
