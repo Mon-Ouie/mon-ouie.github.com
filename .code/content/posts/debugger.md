@@ -164,7 +164,7 @@ debugger thread when this line is reached; also, give it a reference to
 me.". Let's try this!
 
     class Breakpoint
-      def initialize(method, line)
+      def initialize(method, line, is_ip = false)
         # Call method.executable if an UnboundMethod or a Method is passed.
         @method = case method
                   when Rubinius::Executable then method
@@ -173,7 +173,10 @@ me.". Let's try this!
 
         # Get ip of the line (used to set and remove the breakpoint)
         # (line is relative to the beginning of the file, not to the method)
-        @ip = @method.first_ip_on_line(line)
+        #
+        # If is_ip is true, line is actually the IP (but I do agree this is a
+        # quite ugly way to do it).
+        @ip = is_ip ? line : @method.first_ip_on_line(line)
       end
 
       def enable
@@ -425,16 +428,15 @@ array of temporary breakpoints every time we reach one.
     end
 {:.ruby}
 
-The real thing is adding the breakpoint. We'll create a ``next(frames)`` method,
-where frames is the backtrace as an array of ``Frame`` objects (that is,
-``locs.map { |l| Frame.new(l) }``). It will just try to see if there's a line
-after the current one. If there is, then it will put a breakpoint on the next
-relevant instruction. If there is no such instruction, it will return back to
-the previous element of the backtrace.
+The real thing is adding the breakpoint. We'll create a ``next(locs)`` method,
+where frames is the backtrace as an array of ``Rubinius::Location`` objects. It
+will just try to see if there's a line after the current one. If there is, then
+it will put a breakpoint on the next relevant instruction. If there is no such
+instruction, it will return back to the previous element of the backtrace.
 
-    def next!(frames)
-      frame = frames.first
-      exec  = frames[0].loc.method
+    def next!(locs)
+      loc  = locs.first
+      exec = loc.method
 
       # I don't know what "fin" stands for in the actual Rubinius source code.
       # I will assume it is the French for "end", "end" not being allowed as a
@@ -442,19 +444,17 @@ the previous element of the backtrace.
       #
       # It contains the location of the next line. It will thus be nil if this
       # is the last line.
-      fin = exec.first_ip_on_line(frame.loc.line + 1, frame.loc.ip)
+      fin = exec.first_ip_on_line(loc.line + 1, loc.ip)
 
       if fin
         # More work to do. :(
-        set_breakpoints_between(exec, frame.loc.ip, fin)
-      else
-        if frames[1] # If there's a previous element in the backtrace
-          # Create a temporary breakpoint on that element.
-          bp = Breakpoint.new(frames[1].loc.method, frames[1].loc.ip, true)
-          bp.enable
-          @temporary_breakpoints << bp
-          bp
-        end
+        set_breakpoints_between(exec, loc.ip, fin)
+      elsif locs[1] # If there's a previous element in the backtrace
+        # Create a temporary breakpoint on that element.
+        bp = Breakpoint.new(locs[1].method, locs[1].ip, true)
+        bp.enable
+        @temporary_breakpoints << bp
+        bp
       end
     end
 
