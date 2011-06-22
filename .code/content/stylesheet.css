@@ -32,7 +32,7 @@ a {
   text-decoration: underline;
 }
 
-a:link, pa:visited {
+a:link, a:visited {
   color: #999;
 }
 
@@ -117,6 +117,7 @@ code .i   { color: #33c;                       }
 code .fl  { color: #33c;                       }
 code .r   { font-weight: bold;                 }
 code .iv  { color: #09c;                       }
+code .gv  { color: #f90;                       }
 code .pc  { color: #09c;                       }
 code .fu  { color: #00A7CB; font-weight: bold; }
 code .pt  { color: #85c;                       }
