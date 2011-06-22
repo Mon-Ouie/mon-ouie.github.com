@@ -243,7 +243,7 @@ point:
 
     dbg = Debugger.new do |bp, thread, locs|
       frame = Debugger::Frame.new(locs.first)
-      puts "Instance variables: #{fram.run('instance_variables').inspect}"
+      puts "Instance variables: #{frame.run('instance_variables').inspect}"
     end
 
     dbg.start
@@ -523,7 +523,7 @@ simply avoided checking for a constant that could possibly not exist :p):
       puts "reached breakpoint at #{loc.file}:#{loc.line}"
 
       if Debugger::Frame.new(loc).run("self.class.name") == "Foo"
-        dbg.next! locs.map { |l| Debugger::Frame.new(l) }
+        dbg.next! locs
       end
     end
 
@@ -582,8 +582,8 @@ an easy way to step: instead of sending ``true`` to a channel, we'll send
     end
 
     # So, this is just the same as next!, except we set stepping to true.
-    def step!(frames)
-      next! frames
+    def step!(locs)
+      next! locs
       self.stepping = true
     end
 {:.ruby}
@@ -593,7 +593,7 @@ an easy way to step: instead of sending ``true`` to a channel, we'll send
       puts "reached breakpoint at #{loc.file}:#{loc.line}"
 
       if loc.method.name == :start
-        dbg.step! locs.map { |l| Debugger::Frame.new(l) }
+        dbg.step! locs
       end
     end
 

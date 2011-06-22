@@ -174,7 +174,7 @@ debugger thread when this line is reached; also, give it a reference to
 me.”. Let’s try this!</p>
 
 <pre class="ruby"><code><span class="r">class</span> <span class="cl">Breakpoint</span>
-  <span class="r">def</span> <span class="fu">initialize</span>(method, line)
+  <span class="r">def</span> <span class="fu">initialize</span>(method, line, is_ip = <span class="pc">false</span>)
     <span class="c"># Call method.executable if an UnboundMethod or a Method is passed.</span>
     <span class="iv">@method</span> = <span class="r">case</span> method
               <span class="r">when</span> <span class="co">Rubinius</span>::<span class="co">Executable</span> <span class="r">then</span> method
@@ -183,7 +183,10 @@ me.”. Let’s try this!</p>
 
     <span class="c"># Get ip of the line (used to set and remove the breakpoint)</span>
     <span class="c"># (line is relative to the beginning of the file, not to the method)</span>
-    <span class="iv">@ip</span> = <span class="iv">@method</span>.first_ip_on_line(line)
+    <span class="c">#</span>
+    <span class="c"># If is_ip is true, line is actually the IP (but I do agree this is a</span>
+    <span class="c"># quite ugly way to do it).</span>
+    <span class="iv">@ip</span> = is_ip ? line : <span class="iv">@method</span>.first_ip_on_line(line)
   <span class="r">end</span>
 
   <span class="r">def</span> <span class="fu">enable</span>
@@ -249,7 +252,7 @@ point:</p>
 
 <pre class="ruby"><code>dbg = <span class="co">Debugger</span>.new <span class="r">do</span> |bp, thread, locs|
   frame = <span class="co">Debugger</span>::<span class="co">Frame</span>.new(locs.first)
-  puts <span class="s"><span class="dl">"</span><span class="k">Instance variables: </span><span class="il"><span class="idl">#{</span>fram.run(<span class="s"><span class="dl">'</span><span class="k">instance_variables</span><span class="dl">'</span></span>).inspect<span class="idl">}</span></span><span class="dl">"</span></span>
+  puts <span class="s"><span class="dl">"</span><span class="k">Instance variables: </span><span class="il"><span class="idl">#{</span>frame.run(<span class="s"><span class="dl">'</span><span class="k">instance_variables</span><span class="dl">'</span></span>).inspect<span class="idl">}</span></span><span class="dl">"</span></span>
 <span class="r">end</span>
 
 dbg.start
@@ -432,16 +435,15 @@ array of temporary breakpoints every time we reach one.</p>
 <span class="r">end</span>
 </code></pre>
 
-<p>The real thing is adding the breakpoint. We’ll create a <code>next(frames)</code> method,
-where frames is the backtrace as an array of <code>Frame</code> objects (that is,
-<code>locs.map { |l| Frame.new(l) }</code>). It will just try to see if there’s a line
-after the current one. If there is, then it will put a breakpoint on the next
-relevant instruction. If there is no such instruction, it will return back to
-the previous element of the backtrace.</p>
+<p>The real thing is adding the breakpoint. We’ll create a <code>next(locs)</code> method,
+where frames is the backtrace as an array of <code>Rubinius::Location</code> objects. It
+will just try to see if there’s a line after the current one. If there is, then
+it will put a breakpoint on the next relevant instruction. If there is no such
+instruction, it will return back to the previous element of the backtrace.</p>
 
-<pre class="ruby"><code><span class="r">def</span> <span class="fu">next!</span>(frames)
-  frame = frames.first
-  exec  = frames[<span class="i">0</span>].loc.method
+<pre class="ruby"><code><span class="r">def</span> <span class="fu">next!</span>(locs)
+  loc  = locs.first
+  exec = loc.method
 
   <span class="c"># I don't know what "fin" stands for in the actual Rubinius source code.</span>
   <span class="c"># I will assume it is the French for "end", "end" not being allowed as a</span>
@@ -449,19 +451,17 @@ the previous element of the backtrace.</p>
   <span class="c">#</span>
   <span class="c"># It contains the location of the next line. It will thus be nil if this</span>
   <span class="c"># is the last line.</span>
-  fin = exec.first_ip_on_line(frame.loc.line + <span class="i">1</span>, frame.loc.ip)
+  fin = exec.first_ip_on_line(loc.line + <span class="i">1</span>, loc.ip)
 
   <span class="r">if</span> fin
     <span class="c"># More work to do. :(</span>
-    set_breakpoints_between(exec, frame.loc.ip, fin)
-  <span class="r">else</span>
-    <span class="r">if</span> frames[<span class="i">1</span>] <span class="c"># If there's a previous element in the backtrace</span>
-      <span class="c"># Create a temporary breakpoint on that element.</span>
-      bp = <span class="co">Breakpoint</span>.new(frames[<span class="i">1</span>].loc.method, frames[<span class="i">1</span>].loc.ip, <span class="pc">true</span>)
-      bp.enable
-      <span class="iv">@temporary_breakpoints</span> &lt;&lt; bp
-      bp
-    <span class="r">end</span>
+    set_breakpoints_between(exec, loc.ip, fin)
+  <span class="r">elsif</span> locs[<span class="i">1</span>] <span class="c"># If there's a previous element in the backtrace</span>
+    <span class="c"># Create a temporary breakpoint on that element.</span>
+    bp = <span class="co">Breakpoint</span>.new(locs[<span class="i">1</span>].method, locs[<span class="i">1</span>].ip, <span class="pc">true</span>)
+    bp.enable
+    <span class="iv">@temporary_breakpoints</span> &lt;&lt; bp
+    bp
   <span class="r">end</span>
 <span class="r">end</span>
 
@@ -529,7 +529,7 @@ simply avoided checking for a constant that could possibly not exist :p):</p>
   puts <span class="s"><span class="dl">"</span><span class="k">reached breakpoint at </span><span class="il"><span class="idl">#{</span>loc.file<span class="idl">}</span></span><span class="k">:</span><span class="il"><span class="idl">#{</span>loc.line<span class="idl">}</span></span><span class="dl">"</span></span>
 
   <span class="r">if</span> <span class="co">Debugger</span>::<span class="co">Frame</span>.new(loc).run(<span class="s"><span class="dl">"</span><span class="k">self.class.name</span><span class="dl">"</span></span>) == <span class="s"><span class="dl">"</span><span class="k">Foo</span><span class="dl">"</span></span>
-    dbg.next! locs.map { |l| <span class="co">Debugger</span>::<span class="co">Frame</span>.new(l) }
+    dbg.next! locs
   <span class="r">end</span>
 <span class="r">end</span>
 
@@ -587,8 +587,8 @@ an easy way to step: instead of sending <code>true</code> to a channel, we’ll 
 <span class="r">end</span>
 
 <span class="c"># So, this is just the same as next!, except we set stepping to true.</span>
-<span class="r">def</span> <span class="fu">step!</span>(frames)
-  next! frames
+<span class="r">def</span> <span class="fu">step!</span>(locs)
+  next! locs
   <span class="pc">self</span>.stepping = <span class="pc">true</span>
 <span class="r">end</span>
 </code></pre>
@@ -598,7 +598,7 @@ an easy way to step: instead of sending <code>true</code> to a channel, we’ll 
   puts <span class="s"><span class="dl">"</span><span class="k">reached breakpoint at </span><span class="il"><span class="idl">#{</span>loc.file<span class="idl">}</span></span><span class="k">:</span><span class="il"><span class="idl">#{</span>loc.line<span class="idl">}</span></span><span class="dl">"</span></span>
 
   <span class="r">if</span> loc.method.name == <span class="sy">:start</span>
-    dbg.step! locs.map { |l| <span class="co">Debugger</span>::<span class="co">Frame</span>.new(l) }
+    dbg.step! locs
   <span class="r">end</span>
 <span class="r">end</span>
 

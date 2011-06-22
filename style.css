@@ -32,8 +32,7 @@ a {
   text-decoration: underline;
 }
 
-a:link,
-a:visited {
+a:link, pa:visited {
   color: #999;
 }
 
@@ -109,21 +108,21 @@ a:hover {
   line-height: 20px;
 }
 
-code .co  { color: #f50; font-weight: bold; }
-code .cl  { color: #f50; font-weight: bold; }
-code .c   { color: #777; }
-code .s   { color: green; }
-code .sy  { color: #85c; }
-code .i   { color: #33c; }
-code .fl  { color: #33c; }
-code .r   { font-weight: bold; }
-code .iv  { color: #09c; }
-code .pc  { color: #09c; }
+code .co  { color: #f50; font-weight: bold;    }
+code .cl  { color: #f50; font-weight: bold;    }
+code .c   { color: #777;                       }
+code .s   { color: green;                      }
+code .sy  { color: #85c;                       }
+code .i   { color: #33c;                       }
+code .fl  { color: #33c;                       }
+code .r   { font-weight: bold;                 }
+code .iv  { color: #09c;                       }
+code .pc  { color: #09c;                       }
 code .fu  { color: #00A7CB; font-weight: bold; }
-code .pt  { color: #85c; }
-code .di  { color: #85c; }
-code .il  { color: #414833; }
-code .idl { font-weight: bold; }
+code .pt  { color: #85c;                       }
+code .di  { color: #85c;                       }
+code .il  { color: #414833;                    }
+code .idl { font-weight: bold;                 }
 
 code {
   font: 15px Monaco, 'Courier New', 'Terminal', monospace;
@@ -140,7 +139,7 @@ pre {
   -moz-border-radius: 15px;
   border-radius: 15px;
 
-  background-color: white/* #ffffff */;
+  background-color: white;
   border-color: black;
 }
 
