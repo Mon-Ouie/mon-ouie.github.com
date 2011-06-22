@@ -1,24 +1,23 @@
 * {
-  margin: 0;
+  margin:  0;
   padding: 0;
-
 }
 
 #sidebar, #main {
-    font-family: Verdana, "Bitstream Vera Sans", sans-serif;
+  font-family: Verdana, "Bitstream Vera Sans", sans-serif;
 }
 
 #post-date {
-    font-size: 15pt;
-    text-align: right;
-    color: #ccd;
-    font-style: italic;
-    margin-right: 10px;
+  font-size: 15pt;
+  text-align: right;
+  color: #ccd;
+  font-style: italic;
+  margin-right: 10px;
 }
 
 .date-info {
-    color: #aaa;
-    font-style: italic;
+  color: #aaa;
+  font-style: italic;
 }
 
 h1, h2, h3, h4, h5 {
@@ -69,7 +68,7 @@ a:hover {
 }
 
 #main ul, #main ol {
-   margin: 20px;
+  margin: 20px;
 }
 
 #main li {
@@ -110,52 +109,50 @@ a:hover {
   line-height: 20px;
 }
 
-code .co { color: #f50; font-weight: bold; }
-code .cl { color: #f50; font-weight: bold; }
-code .c  { color: #777; }
-code .s  { color: green; }
-code .sy { color: #85c; }
-code .i  { color: #33c; }
-code .fl { color: #33c; }
-code .r  { font-weight: bold; }
-code .iv { color: #09c; }
-code .pc { color: #09c; }
-code .fu { color: #00A7CB; font-weight: bold; }
-code .pt { color: #85c; }
-code .di { color: #85c; }
-code .il { color: #414833; }
+code .co  { color: #f50; font-weight: bold; }
+code .cl  { color: #f50; font-weight: bold; }
+code .c   { color: #777; }
+code .s   { color: green; }
+code .sy  { color: #85c; }
+code .i   { color: #33c; }
+code .fl  { color: #33c; }
+code .r   { font-weight: bold; }
+code .iv  { color: #09c; }
+code .pc  { color: #09c; }
+code .fu  { color: #00A7CB; font-weight: bold; }
+code .pt  { color: #85c; }
+code .di  { color: #85c; }
+code .il  { color: #414833; }
 code .idl { font-weight: bold; }
 
 code {
-    font: 15px Monaco, 'Courier New', 'Terminal', monospace;
+  font: 15px Monaco, 'Courier New', 'Terminal', monospace;
 }
 
 pre {
-    padding: 5px;
-    margin:  5px;
+  padding: 5px;
+  margin:  5px;
 
-    font-size: 1em;
+  font-size: 1em;
 
-    border-style: solid;
-    border-width: 2px;
-    -moz-border-radius: 15px;
-    border-radius: 15px;
+  border-style: solid;
+  border-width: 2px;
+  -moz-border-radius: 15px;
+  border-radius: 15px;
 
-    background-color: #fafafa;
-    border-color: #7c7c7c;
-
-    font: 15px Monaco, 'Courier New', 'Terminal', monospace;
+  background-color: white/* #ffffff */;
+  border-color: black;
 }
 
 .term {
-    padding: 5px;
+  padding: 5px;
 
-    border-style: solid;
-    border-width: 2px;
-    -moz-border-radius: 15px;
-    border-radius: 15px;
+  border-style: solid;
+  border-width: 2px;
+  -moz-border-radius: 15px;
+  border-radius: 15px;
 
-    background-color: #000;
-    color: #fff;
-    border-color: #fff;
+  background-color: #000;
+  color: #fff;
+  border-color: #fff;
 }
