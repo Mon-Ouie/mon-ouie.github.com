@@ -130,10 +130,10 @@ current thread to the thread we created.
       # Send our objects
       @local_channel.send Rubinius::Tuple[bp, Thread.current, channel, locs]
 
-      # Wait that the thread is done
+      # Wait for the thread
       channel.receive
 
-      # Set the debugger thread.
+      # Set the debugger thread
       Thread.current.set_debugger_thread @thread
     end
 {:.ruby}
@@ -165,7 +165,7 @@ me.". Let's try this!
 
     class Breakpoint
       def initialize(method, line, is_ip = false)
-        # Call method.executable if an UnboundMethod or a Method is passed.
+        # Call method.executable if an UnboundMethod or a Method is passed
         @method = case method
                   when Rubinius::Executable then method
                   else method.executable
@@ -428,7 +428,7 @@ array of temporary breakpoints every time we reach one.
     end
 {:.ruby}
 
-The real thing is adding the breakpoint. We'll create a ``next(locs)`` method,
+The real thing is adding the breakpoint. We'll create a ``next(locs)`` method ,
 where frames is the backtrace as an array of ``Rubinius::Location`` objects. It
 will just try to see if there's a line after the current one. If there is, then
 it will put a breakpoint on the next relevant instruction. If there is no such
