@@ -1,0 +1,39 @@
+#!/usr/bin/ruby
+# -*- coding: utf-8 -*-
+
+require 'nokogiri'
+
+posts = Post.all(@items)[0, 10]
+root  = @site.config[:base_url] + '/'
+url   = File.join(root, @item.reps.first.path)
+
+builder = Nokogiri::XML::Builder.new do
+  feed :xmlns => 'http://www.w3.org/2005/Atom' do
+    id    root
+    title "Moi, mon ouïe"
+
+    updated posts[0].creation_time.to_iso8601_time
+
+    link :rel => "alternate", :href => root
+    link :rel => "self",      :href => url
+
+    author do
+      name "Mon ouïe"
+      uri  root
+    end
+
+    posts.each do |post|
+      entry do
+        id    File.join(root, 'posts', post.creation_time.to_iso8601_time)
+        title post.title
+
+        published post.creation_time.to_iso8601_time
+        updated   post.creation_time.to_iso8601_time
+
+        link :rel => "alternate", :href => File.join(root, post.url)
+      end
+    end
+  end
+end
+
+builder.to_xml

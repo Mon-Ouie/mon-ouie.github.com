@@ -28,8 +28,21 @@ class Nanoc3::Filters::ColorizeSyntax
   end
 end
 
+class EvalFilter < Nanoc3::Filter
+  register self, :eval
+  type :text => :text
+
+  def run(content, opts = {})
+    eval content
+  end
+end
+
 include Nanoc3::Helpers::HTMLEscape
 include Nanoc3::Helpers::LinkTo
+
+def item_by_id(id)
+  @items.find { |i| i.identifier == id }
+end
 
 class Post
   @all = nil

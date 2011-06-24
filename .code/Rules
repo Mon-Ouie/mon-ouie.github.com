@@ -22,6 +22,10 @@ compile '/posts/*' do
   layout 'default'
 end
 
+compile '/feed/' do
+  filter :eval
+end
+
 compile '*' do
   filter :erb
   layout 'default'
@@ -33,6 +37,10 @@ end
 
 route '/posts/*' do
   "/posts/#{File.basename(item.identifier)}.html"
+end
+
+route '/feed/' do
+  "/feed.atom"
 end
 
 route '*' do

@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <id>http://mon-ouie.github.com/</id>
+  <title>Moi, mon ou&#xEF;e</title>
+  <updated>2011-06-20T19:12:17Z</updated>
+  <link rel="alternate" href="http://mon-ouie.github.com/"/>
+  <link rel="self" href="http://mon-ouie.github.com/feed.atom"/>
+  <author>
+    <name>Mon ou&#xEF;e</name>
+    <uri>http://mon-ouie.github.com/</uri>
+  </author>
+  <entry>
+    <id>http://mon-ouie.github.com/posts/2011-06-20T19:12:17Z</id>
+    <title>Rubinius Debugging API</title>
+    <published>2011-06-20T19:12:17Z</published>
+    <updated>2011-06-20T19:12:17Z</updated>
+    <link rel="alternate" href="http://mon-ouie.github.com/posts/debugger.html"/>
+  </entry>
+</feed>
