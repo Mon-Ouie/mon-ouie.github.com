@@ -1,0 +1,257 @@
+<!DOCTYPE HTML>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Moi, mon ouïe - Plugins in Ruby</title>
+    <link rel="stylesheet" type="text/css" href="/style.css" media="screen">
+    <link rel="alternate"  type="application/atom+xml"
+          title="Moi, mon ouïe"
+          href="/feed.atom"/>
+    <meta name="generator" content="nanoc 3.1.7">
+  </head>
+
+  <body>
+    <div id="main">
+      
+        <h1>Plugins in Ruby</h1>
+
+        <div id="post-date">
+          Friday 24 June 2011
+        </div>
+      
+
+      <p>Plugins are often useful to allow the user to extend features of a
+program. Providing a nice plugin API is not so obvious yet — the user of this
+code is supposed to be able to extend the program, he doesn’t want to just
+monkey patch a bunch of classes and hope it will still work. To allow the user
+to do something useful, the program should have a module architecture, so that
+it would be able to work.</p>
+
+<p>Let’s just list several ideas to make this incredibly powerful programs
+extensible:</p>
+
+<pre class="ruby"><code><span class="r">while</span> line = gets
+  puts line
+<span class="r">end</span>
+</code></pre>
+
+<h2 id="finding-the-plugins">Finding the plugins</h2>
+
+<p>Obviouslsy, once we have our program, the first step we need is to find a plugin</p>
+
+<h3 id="using-a-config-file">Using a config file</h3>
+
+<p>You could just let use a config file to list the extensions to load, and simply
+require the files that are mentioned:</p>
+
+<pre class="ruby"><code>require <span class="s"><span class="dl">'</span><span class="k">yaml</span><span class="dl">'</span></span>
+
+open(<span class="s"><span class="dl">"</span><span class="k">config.yaml</span><span class="dl">"</span></span>) { |io| <span class="co">YAML</span>.load(io) }.each <span class="r">do</span> |file|
+  <span class="r">begin</span>
+    require file
+  <span class="r">rescue</span> <span class="co">LoadError</span>
+    <span class="gv">$stderr</span>.puts <span class="s"><span class="dl">"</span><span class="k">WARNING: plugin </span><span class="il"><span class="idl">#{</span>file<span class="idl">}</span></span><span class="k"> could not be loaded!</span><span class="dl">"</span></span>
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>The benefit of this is you can specify what plugins need to be loaded; this also
+means a plugin won’t be found automatically.</p>
+
+<h3 id="using-gem">Using Gem</h3>
+
+<p>Rubygems can be helpful to find plugins. By assuming all plugins are installed
+through gems with a name starting by your prefix, and that the file to require
+has the same name as the gem, you can use <code>Gem::Specification</code> to find them:</p>
+
+<pre class="ruby"><code>require <span class="s"><span class="dl">'</span><span class="k">rubygems</span><span class="dl">'</span></span>
+
+<span class="co">Gem</span>::<span class="co">Specification</span>.each <span class="r">do</span> |gem|
+  <span class="r">if</span> gem.name.start_with? <span class="s"><span class="dl">"</span><span class="k">genious-printer-</span><span class="dl">"</span></span>
+    <span class="r">begin</span>
+      require gem.name
+    <span class="r">rescue</span> <span class="co">LoadError</span>
+      <span class="gv">$stderr</span>.puts <span class="s"><span class="dl">"</span><span class="k">WARNING: plugin </span><span class="il"><span class="idl">#{</span>gem.name<span class="idl">}</span></span><span class="k"> could not be loaded!</span><span class="dl">"</span></span>
+    <span class="r">end</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>This allows you to find any plugin easily, but, when implemented as above, it
+doesn’t allow to blacklist plugins; you would have to still use a config file
+for this. Let’s use this here, so we can default to use all the available
+plugins. :)</p>
+
+<h2 id="loading-a-backend">Loading a backend</h2>
+
+<p>One way to make plugins interact with your program is to make them be a
+backend. Then, your program will drive the execution flow and the plugin
+will do the basic work. This can be useful to completely change the behaviour of
+the program, but also means only one plugin can do it. Still, let’s write a such
+plugin… to… write every “e” in red and add a timestamp!</p>
+
+<pre class="ruby"><code>require <span class="s"><span class="dl">'</span><span class="k">rubygems</span><span class="dl">'</span></span>
+
+<span class="r">class</span> <span class="cl">GeniousPrinter</span>
+  <span class="r">class</span> <span class="cl">Backend</span>
+    <span class="r">def</span> <span class="fu">gets</span>
+      <span class="gv">$stdin</span>.gets
+    <span class="r">end</span>
+
+    <span class="r">def</span> <span class="fu">puts</span>(line)
+      <span class="gv">$stdout</span>.puts line
+    <span class="r">end</span>
+  <span class="r">end</span>
+
+  <span class="r">class</span> &lt;&lt; <span class="cl">self</span>
+    attr_accessor <span class="sy">:backend</span>
+
+    <span class="r">def</span> <span class="fu">run</span>
+      new(backend).run
+    <span class="r">end</span>
+  <span class="r">end</span>
+
+  <span class="iv">@backend</span> = <span class="co">Backend</span>.new
+
+  <span class="r">def</span> <span class="fu">initialize</span>(backend)
+    <span class="iv">@backend</span> = backend
+  <span class="r">end</span>
+
+  <span class="r">def</span> <span class="fu">run</span>
+    <span class="r">while</span> line = <span class="iv">@backend</span>.gets
+      <span class="iv">@backend</span>.puts line
+    <span class="r">end</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+
+<span class="c"># Load plugins here</span>
+<span class="co">Gem</span>::<span class="co">Specification</span>.each <span class="r">do</span> |gem|
+  <span class="r">if</span> gem.name.start_with? <span class="s"><span class="dl">"</span><span class="k">genious-printer-</span><span class="dl">"</span></span>
+    <span class="r">begin</span>
+      require gem.name
+    <span class="r">rescue</span> <span class="co">LoadError</span>
+      <span class="gv">$stderr</span>.puts <span class="s"><span class="dl">"</span><span class="k">WARNING: plugin </span><span class="il"><span class="idl">#{</span>gem.name<span class="idl">}</span></span><span class="k"> could not be loaded!</span><span class="dl">"</span></span>
+    <span class="r">end</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+
+<span class="co">GeniousPrinter</span>.run
+</code></pre>
+
+<pre class="ruby"><code><span class="r">class</span> <span class="cl">GeniousBackend</span>
+  <span class="r">def</span> <span class="fu">gets</span>
+    <span class="r">if</span> line = <span class="gv">$stdin</span>.gets
+      line.gsub(<span class="s"><span class="dl">"</span><span class="k">e</span><span class="dl">"</span></span>, <span class="s"><span class="dl">"</span><span class="ch">\e</span><span class="k">[31me</span><span class="ch">\e</span><span class="k">[0m</span><span class="dl">"</span></span>)
+    <span class="r">end</span>
+  <span class="r">end</span>
+
+  <span class="r">def</span> <span class="fu">puts</span>(line)
+    <span class="gv">$stdout</span>.puts <span class="s"><span class="dl">"</span><span class="k">[</span><span class="il"><span class="idl">#{</span><span class="co">Time</span>.now.strftime <span class="s"><span class="dl">"</span><span class="k">%T</span><span class="dl">"</span></span><span class="idl">}</span></span><span class="k">] </span><span class="il"><span class="idl">#{</span>line<span class="idl">}</span></span><span class="dl">"</span></span>
+  <span class="r">end</span>
+<span class="r">end</span>
+
+<span class="co">GeniousPrinter</span>.backend = <span class="co">GeniousBackend</span>.new
+</code></pre>
+
+<p>Here’s a sample session <em>without</em> our plugin:</p>
+
+<pre class="term"><code>hello
+hello
+this is a test
+this is a test
+this is incredibly useful!
+this is incredibly useful!
+</code></pre>
+
+<p>But here’s a session <em>with</em> our plugin! (imagine every single “e” is actually
+red!)</p>
+
+<pre class="term"><code>hello
+[10:17:19] hello
+this is a test
+[10:17:22] this is a test
+this is incredibly useful
+[10:17:26] this is incredibly useful
+</code></pre>
+
+<p>Now, clearly, this makes our progrgam way more powerful.</p>
+
+<h2 id="hook-based-plugins">Hook-based plugins</h2>
+
+<p>This current plugin system isn’t powerful enough. What if we want to log what
+the user types, for instance? If we do this with a backend, other plugins will
+not work. So, we should have a way to notify any plugins that want to know about
+something. We can do this with a hook: by registering something to do (say,
+calling a block) when an event occurs.</p>
+
+<pre class="ruby"><code><span class="r">class</span> <span class="cl">GeniousPrinter</span>
+  <span class="iv">@hooks</span> = <span class="co">Hash</span>.new { |h, k| h[k] = [] }
+
+  <span class="r">def</span> <span class="pc">self</span>.<span class="fu">on</span>(event, &amp;block)
+    <span class="iv">@hooks</span>[event] &lt;&lt; block
+  <span class="r">end</span>
+
+  <span class="r">def</span> <span class="pc">self</span>.<span class="fu">fire!</span>(event, *args)
+    <span class="iv">@hooks</span>[event].each { |hook| hook.call(*args) }
+  <span class="r">end</span>
+
+  <span class="r">def</span> <span class="fu">run</span>
+    <span class="co">GeniousPrinter</span>.fire! <span class="sy">:start</span>
+
+    <span class="r">while</span> line = <span class="iv">@backend</span>.gets
+      <span class="co">GeniousPrinter</span>.fire! <span class="sy">:input</span>, line
+      <span class="iv">@backend</span>.puts line
+    <span class="r">end</span>
+
+    <span class="co">GeniousPrinter</span>.fire! <span class="sy">:end</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<pre class="ruby"><code>io = <span class="pc">nil</span>
+
+<span class="co">GeniousPrinter</span>.on <span class="sy">:start</span> <span class="r">do</span>
+  io = open(<span class="co">File</span>.join(<span class="co">ENV</span>[<span class="s"><span class="dl">"</span><span class="k">HOME</span><span class="dl">"</span></span>], <span class="s"><span class="dl">"</span><span class="k">.genious_print_log</span><span class="dl">"</span></span>), <span class="s"><span class="dl">"</span><span class="k">w</span><span class="dl">"</span></span>)
+  io.puts <span class="s"><span class="dl">"</span><span class="k">session started</span><span class="dl">"</span></span>
+<span class="r">end</span>
+
+<span class="co">GeniousPrinter</span>.on <span class="sy">:input</span> <span class="r">do</span> |line|
+  io.puts line
+<span class="r">end</span>
+
+<span class="co">GeniousPrinter</span>.on <span class="sy">:end</span> <span class="r">do</span>
+  io.puts <span class="s"><span class="dl">"</span><span class="k">session ended</span><span class="dl">"</span></span>
+  io.close
+<span class="r">end</span>
+</code></pre>
+
+<p>And now we can get our logs, just in case we would want to read them again
+(again, don’t forget those “e”s are actually red)!</p>
+
+<pre class="term"><code>session started
+hello
+this is a test
+this is incredibly useful!
+session ended
+</code></pre>
+    </div>
+
+    <div id="sidebar">
+      <h2><a href="/index.html">Home</a></h2>
+
+      <h2>Sons récents</h2>
+      <ul>
+        
+          <li><a href="/posts/plugins.html">Plugins in Ruby</a></li>
+        
+          <li><a href="/posts/debugger.html">Rubinius Debugging API</a></li>
+        
+      </ul>
+
+      <h2>Moi</h2>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+      </ul>
+    </div>
+  </body>
+</html>
