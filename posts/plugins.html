@@ -27,7 +27,7 @@ monkey patch a bunch of classes and hope it will still work. To allow the user
 to do something useful, the program should have a module architecture, so that
 it would be able to work.</p>
 
-<p>Let’s just list several ideas to make this incredibly powerful programs
+<p>Let’s just list several ideas to make this incredibly powerful program
 extensible:</p>
 
 <pre class="ruby"><code><span class="r">while</span> line = gets
@@ -37,7 +37,7 @@ extensible:</p>
 
 <h2 id="finding-the-plugins">Finding the plugins</h2>
 
-<p>Obviouslsy, once we have our program, the first step we need is to find a plugin</p>
+<p>Obvioulsy, once we have our program, the first step is to find a plugin.</p>
 
 <h3 id="using-a-config-file">Using a config file</h3>
 
@@ -174,7 +174,7 @@ this is incredibly useful
 [10:17:26] this is incredibly useful
 </code></pre>
 
-<p>Now, clearly, this makes our progrgam way more powerful.</p>
+<p>Now, clearly, this makes our program way more powerful and useful.</p>
 
 <h2 id="hook-based-plugins">Hook-based plugins</h2>
 
@@ -213,7 +213,7 @@ calling a block) when an event occurs.</p>
 <span class="co">GeniousPrinter</span>.on <span class="sy">:start</span> <span class="r">do</span>
   io = open(<span class="co">File</span>.join(<span class="co">ENV</span>[<span class="s"><span class="dl">"</span><span class="k">HOME</span><span class="dl">"</span></span>], <span class="s"><span class="dl">"</span><span class="k">.genious_print_log</span><span class="dl">"</span></span>), <span class="s"><span class="dl">"</span><span class="k">w</span><span class="dl">"</span></span>)
   io.puts <span class="s"><span class="dl">"</span><span class="k">session started</span><span class="dl">"</span></span>
-<span class="r">end</span>
+en
 
 <span class="co">GeniousPrinter</span>.on <span class="sy">:input</span> <span class="r">do</span> |line|
   io.puts line
@@ -241,6 +241,8 @@ session ended
 
       <h2>Sons récents</h2>
       <ul>
+        
+          <li><a href="/posts/brainfuck.html">Brainfuck on Rubinius</a></li>
         
           <li><a href="/posts/plugins.html">Plugins in Ruby</a></li>
         

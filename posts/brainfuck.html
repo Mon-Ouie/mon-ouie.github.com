@@ -1,0 +1,592 @@
+<!DOCTYPE HTML>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Moi, mon ouïe - Brainfuck on Rubinius</title>
+    <link rel="stylesheet" type="text/css" href="/style.css" media="screen">
+    <link rel="alternate"  type="application/atom+xml"
+          title="Moi, mon ouïe"
+          href="/feed.atom"/>
+    <meta name="generator" content="nanoc 3.1.7">
+  </head>
+
+  <body>
+    <div id="main">
+      
+        <h1>Brainfuck on Rubinius</h1>
+
+        <div id="post-date">
+          Wednesday 29 June 2011
+        </div>
+      
+
+      <p>Brainfuck is a very powerful and useful languages — surely, millions of people
+write their shell scripts in Brainfuck. The simplicity of its syntax makes it
+even more powerful — only 8 instructions.
+<a href="http://en.wikipedia.org/wiki/Brainfuck">this is if you don’t know Brainfuck</a>.</p>
+
+<p>So, the most common use-case of Brainfuck is implementing it. We could easily
+write an interpreter for it, but we can make it even funnier. We can generate
+bytecode to make it run even faster! And Rubinius provides what we need to
+generate such bytecode. :)</p>
+
+<h2 id="the-parser">The parser</h2>
+
+<p>As I said, Brainfuck is very complex. We must definitely use a parser to get AST
+nodes out of Brainfuck code. But I’ll still do it by hand, regardless of
+fear. Not only would I dare to do it with <code>String#[]</code>, I will require one of
+those rusted classes from stdlib — one of the underused
+ones. <code>StringScanner</code>.</p>
+
+<p>So, let’s write one of those parsers. The first thing we need is a bunch of AST
+nodes. We will only have a few instructions: printing the current character
+(<code>Out</code>), asking the user for input (<code>Inp</code>), changing the current value using
++ and - (<code>ValVar</code>), changing the current cell using &gt; and &lt; (<code>PosVar</code>), and
+loops (<code>Loop</code>). So we just need empty classes for now.</p>
+
+<pre class="ruby"><code><span class="r">module</span> <span class="cl">Brainfuck</span>
+  <span class="r">module</span> <span class="cl">AST</span>
+    <span class="r">class</span> <span class="cl">Out</span>
+    <span class="r">end</span>
+
+    <span class="r">class</span> <span class="cl">Inp</span>
+    <span class="r">end</span>
+
+    <span class="co">ValVar</span> = <span class="co">Struct</span>.new <span class="sy">:size</span> <span class="r">do</span>
+    <span class="r">end</span>
+
+    <span class="co">PosVar</span> = <span class="co">Struct</span>.new <span class="sy">:size</span> <span class="r">do</span>
+    <span class="r">end</span>
+
+    <span class="co">Loop</span> = <span class="co">Struct</span>.new <span class="sy">:seq</span> <span class="r">do</span>
+    <span class="r">end</span>
+
+    <span class="c"># top-level node</span>
+    <span class="co">Script</span> = <span class="co">Struct</span>.new <span class="sy">:seq</span> <span class="r">do</span>
+    <span class="r">end</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>Now, the parser! It will simply go through the Brainfuck code, and generate
+nodes for each part of the code. We’ll keep track of the amount of position and
+value variations. When we reach an instruction that doesn’t change the position,
+we reset the position counter and generate the <code>PosVar</code>; same with <code>ValVar</code>.</p>
+
+<pre class="ruby"><code><span class="r">module</span> <span class="cl">Brainfuck</span>
+  <span class="r">module</span> <span class="cl">Parser</span>
+    <span class="r">class</span> <span class="cl">Error</span> &lt; <span class="co">StandardError</span>
+      <span class="r">def</span> <span class="fu">initialize</span>
+        <span class="r">super</span> <span class="s"><span class="dl">"</span><span class="k">unmatched brackets</span><span class="dl">"</span></span> <span class="c"># only possible error :)</span>
+      <span class="r">end</span>
+    <span class="r">end</span>
+
+    module_function
+    <span class="r">def</span> <span class="fu">parse</span>(code)
+      <span class="co">AST</span>::<span class="co">Script</span>.new scan(<span class="co">StringScanner</span>.new(code), <span class="i">0</span>)
+    <span class="r">end</span>
+
+    <span class="r">def</span> <span class="fu">scan</span>(scanner, depth)
+      ret     = []
+      pos_var = val_var = <span class="i">0</span>
+
+      <span class="r">until</span> scanner.eos?
+        <span class="r">case</span> scanner.getch
+        <span class="r">when</span> <span class="s"><span class="dl">'</span><span class="k">.</span><span class="dl">'</span></span>
+          generate_variations(ret, pos_var, val_var)
+          pos_var = val_var = <span class="i">0</span>
+          ret &lt;&lt; <span class="co">AST</span>::<span class="co">Out</span>.new
+        <span class="r">when</span> <span class="s"><span class="dl">'</span><span class="k">,</span><span class="dl">'</span></span>
+          generate_variations(ret, pos_var, val_var)
+          pos_var = val_var = <span class="i">0</span>
+          ret &lt;&lt; <span class="co">AST</span>::<span class="co">Inp</span>.new
+
+        <span class="r">when</span> <span class="s"><span class="dl">'</span><span class="k">+</span><span class="dl">'</span></span>
+          generate_pos_variation(ret, pos_var)
+          pos_var  = <span class="i">0</span>
+          val_var += <span class="i">1</span>
+        <span class="r">when</span> <span class="s"><span class="dl">'</span><span class="k">-</span><span class="dl">'</span></span>
+          generate_pos_variation(ret, pos_var)
+          pos_var  = <span class="i">0</span>
+          val_var -= <span class="i">1</span>
+        <span class="r">when</span> <span class="s"><span class="dl">'</span><span class="k">&gt;</span><span class="dl">'</span></span>
+          generate_val_variation(ret, val_var)
+          val_var  = <span class="i">0</span>
+          pos_var += <span class="i">1</span>
+        <span class="r">when</span> <span class="s"><span class="dl">'</span><span class="k">&lt;</span><span class="dl">'</span></span>
+          generate_val_variation(ret, val_var)
+          val_var  = <span class="i">0</span>
+          pos_var -= <span class="i">1</span>
+
+        <span class="r">when</span> <span class="s"><span class="dl">'</span><span class="k">[</span><span class="dl">'</span></span>
+          generate_variations(ret, pos_var, val_var)
+          val_var = pos_var = <span class="i">0</span>
+          ret &lt;&lt; <span class="co">AST</span>::<span class="co">Loop</span>.new(scan(scanner, depth + <span class="i">1</span>))
+        <span class="r">when</span> <span class="s"><span class="dl">'</span><span class="k">]</span><span class="dl">'</span></span>
+          generate_variations(ret, pos_var, val_var)
+          val_var = pos_var = <span class="i">0</span>
+
+          <span class="r">if</span> depth.zero?
+            raise <span class="co">Error</span>
+          <span class="r">else</span>
+            <span class="r">return</span> ret
+          <span class="r">end</span>
+        <span class="r">end</span>
+      <span class="r">end</span>
+
+      <span class="r">if</span> depth.zero?
+        ret
+      <span class="r">else</span>
+        raise <span class="co">Error</span>
+      <span class="r">end</span>
+    <span class="r">end</span>
+
+    <span class="r">def</span> <span class="fu">generate_variations</span>(output, pos_var, val_var)
+      generate_pos_variation(output, pos_var)
+      generate_val_variation(output, val_var)
+    <span class="r">end</span>
+
+    <span class="r">def</span> <span class="fu">generate_pos_variation</span>(output, var)
+      <span class="r">unless</span> var.zero?
+        output &lt;&lt; <span class="co">AST</span>::<span class="co">PosVar</span>.new(var)
+      <span class="r">end</span>
+    <span class="r">end</span>
+
+    <span class="r">def</span> <span class="fu">generate_val_variation</span>(output, var)
+      <span class="r">unless</span> var.zero?
+        output &lt;&lt; <span class="co">AST</span>::<span class="co">ValVar</span>.new(var)
+      <span class="r">end</span>
+    <span class="r">end</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>Does it work? Let’s try it!</p>
+
+<pre class="term"><code>pry(main)&gt; load "bf_rbx.rb"
+=&gt; true
+pry(main)&gt; cd Brainfuck::Parser
+pry(Brainfuck::Parser):1&gt; parse "test"
+=&gt; (Brainfuck::AST::Script &lt; Struct) {
+  :seq =&gt; []
+}
+pry(Brainfuck::Parser):1&gt; parse "[,.]"
+=&gt; (Brainfuck::AST::Script &lt; Struct) {
+  :seq =&gt; [
+    [0] (Brainfuck::AST::Loop &lt; Struct) {
+      :seq =&gt; [
+        [0] #&lt;Brainfuck::AST::Inp:0x3798&gt;,
+        [1] #&lt;Brainfuck::AST::Out:0x379c&gt;
+      ]
+    }
+  ]
+}
+pry(Brainfuck::Parser):1&gt; parse "&gt;&gt;&gt;&lt; . &gt;&gt;+--&lt; . -+ ."
+=&gt; (Brainfuck::AST::Script &lt; Struct) {
+  :seq =&gt; [
+    [0] (Brainfuck::AST::PosVar &lt; Struct) {
+      :size =&gt; 2,
+    },
+    [1] #&lt;Brainfuck::AST::Out:0x3ea0&gt;,
+    [2] (Brainfuck::AST::PosVar &lt; Struct) {
+      :size =&gt; 2,
+    },
+    [3] (Brainfuck::AST::ValVar &lt; Struct) {
+      :size =&gt; -1,
+    },
+    [4] (Brainfuck::AST::PosVar &lt; Struct) {
+      :size =&gt; -1,
+    },
+    [5] #&lt;Brainfuck::AST::Out:0x3eb4&gt;,
+    [6] #&lt;Brainfuck::AST::Out:0x3eb8&gt;
+  ]
+}
+pry(Brainfuck::Parser):1&gt; parse "test +[-]+"
+=&gt; (Brainfuck::AST::Script &lt; Struct) {
+  :seq =&gt; [
+    [0] (Brainfuck::AST::ValVar &lt; Struct) {
+      :size =&gt; 1
+    },
+    [1] (Brainfuck::AST::Loop &lt; Struct) {
+      :seq =&gt; [
+        [0] (Brainfuck::AST::ValVar &lt; Struct) {
+          :size =&gt; -1,
+        }
+      ]
+    },
+    [2] (Brainfuck::AST::ValVar &lt; Struct) {
+      :size =&gt; 1
+    }
+  ]
+}
+pry(Brainfuck::Parser):1&gt; parse "]"
+Brainfuck::Parser::Error: unmatched brackets
+  from ./bf_rbx.rb:179:in `scan'
+pry(Brainfuck::Parser):1&gt; parse "[]]"
+Brainfuck::Parser::Error: unmatched brackets
+  from ./bf_rbx.rb:179:in `scan'
+pry(Brainfuck::Parser):1&gt; parse "["
+Brainfuck::Parser::Error: unmatched brackets
+  from ./bf_rbx.rb:191:in `scan'
+</code></pre>
+
+<p>This looks like what I expect! :)</p>
+
+<h2 id="bytecode-generation">Bytecode generation</h2>
+
+<p>This part is the core of the work: it tells Rubinius how to run our code. Each
+AST node must know how to generate its own bytecode. To teach this to our
+objects, we’ll give them a <code>bytecode</code> method.</p>
+
+<h3 id="astscript">AST::Script</h3>
+
+<p>This one is where the code starts, so it will setup our environment: set the
+current line (let’s forget about that and just set it to one), the cursor
+position, and the buffer. Then we just generate the bytecode for all the nodes
+in the script. It will also be responsibly of setting the return value of the
+brainfuck code (we’ll set that to the used buffer).</p>
+
+<p>Since Rubinius expects us to use the index of local variables, let’s keep them
+as constants to make the code clearer.</p>
+
+<pre class="ruby"><code><span class="r">module</span> <span class="cl">Brainfuck</span>
+  <span class="r">module</span> <span class="cl">AST</span>
+    <span class="co">Buffer</span>  = <span class="i">0</span>
+    <span class="co">Pointer</span> = <span class="i">1</span>
+
+    <span class="co">BufferSize</span> = <span class="i">3000</span>
+
+    <span class="co">Script</span> = <span class="co">Struct</span>.new <span class="sy">:seq</span> <span class="r">do</span>
+      <span class="r">def</span> <span class="fu">bytecode</span>(g) <span class="c"># g is short for generator</span>
+        <span class="c"># let's say everything is in one line</span>
+        <span class="c"># (I'm sure setting it to the real value is useful to write a</span>
+        <span class="c">#  brainfuck debugger...)</span>
+        g.set_line <span class="i">1</span>
+
+        g.meta_push_0       <span class="c"># push 0</span>
+        g.set_local <span class="co">Pointer</span> <span class="c"># assign it to pointer</span>
+        g.pop               <span class="c"># pop 0</span>
+                            <span class="c"># (we must pop values we won't use)</span>
+
+        g.push_literal <span class="co">Array</span>.new(<span class="co">BufferSize</span>, <span class="i">0</span>) <span class="c"># push array</span>
+        g.set_local <span class="co">Buffer</span>                      <span class="c"># assign it to buffer</span>
+        g.pop                                   <span class="c"># pop array</span>
+
+        seq.each <span class="r">do</span> |o| <span class="c"># run code</span>
+          o.bytecode g
+        <span class="r">end</span>
+
+        <span class="c"># This seems to make Rubinius check the variables we need, etc.</span>
+        g.use_detected
+
+        g.push_local <span class="co">Buffer</span> <span class="c"># push buffer</span>
+        g.ret               <span class="c"># return it</span>
+      <span class="r">end</span>
+    <span class="r">end</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<h3 id="astnode">AST::Node</h3>
+
+<p>We’ll need to change the value of the buffer quite often, so writing a mixin to
+generate code used for this will help us to avoid repititons.</p>
+
+<pre class="ruby"><code><span class="r">module</span> <span class="cl">Brainfuck</span>
+  <span class="r">module</span> <span class="cl">AST</span>
+    <span class="r">module</span> <span class="cl">Node</span>
+      <span class="r">def</span> <span class="fu">push_current</span>(g)
+        <span class="c"># This is how you do a method call:</span>
+
+        <span class="c"># Buffer[Pointer]</span>
+        g.push_local <span class="co">Buffer</span>   <span class="c"># 1. push the receiver</span>
+        g.push_local <span class="co">Pointer</span>  <span class="c"># 2. push arguments</span>
+        g.send <span class="sy">:[]</span>, <span class="i">1</span>         <span class="c"># 3. send method, and specify argument count</span>
+      <span class="r">end</span>
+
+      <span class="r">def</span> <span class="fu">set_current</span>(g)
+        <span class="c"># Buffer[Pointer] = value</span>
+
+        g.push_local   <span class="co">Buffer</span>  <span class="c"># push array</span>
+        g.push_local   <span class="co">Pointer</span> <span class="c"># push index</span>
+
+        <span class="r">yield</span> g                <span class="c"># use a block to push value</span>
+
+        g.send <span class="sy">:[]=</span>, <span class="i">2</span>         <span class="c"># call this</span>
+        g.pop                  <span class="c"># pop result</span>
+      <span class="r">end</span>
+    <span class="r">end</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<h3 id="astout">AST::Out</h3>
+
+<p>This one simply writes the current value to stdout. For instance if current
+element is set to 97, it will print “a”.</p>
+
+<pre class="ruby"><code><span class="r">module</span> <span class="cl">Brainfuck</span>
+  <span class="r">module</span> <span class="cl">AST</span>
+    <span class="r">class</span> <span class="cl">Out</span>
+      include <span class="co">Node</span>
+
+      <span class="r">def</span> <span class="fu">bytecode</span>(g)
+        g.push_literal <span class="gv">$stdout</span>  <span class="c"># push $stdout</span>
+        push_current g          <span class="c"># push g</span>
+        g.send <span class="sy">:chr</span>, <span class="i">0</span>          <span class="c"># replace it with g.chr</span>
+        g.send <span class="sy">:print</span>, <span class="i">1</span>        <span class="c"># print it</span>
+        g.pop                   <span class="c"># pop result</span>
+      <span class="r">end</span>
+    <span class="r">end</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<h3 id="astinp">AST::Inp</h3>
+
+<p>This is just the opposite: get a byte from stdin. We’ll call to_i on the result
+so we’ll get 0 at EOF (in which case getbyte returns nil).</p>
+
+<pre class="ruby"><code><span class="r">module</span> <span class="cl">Brainfuck</span>
+  <span class="r">module</span> <span class="cl">AST</span>
+    <span class="r">class</span> <span class="cl">Inp</span>
+      include <span class="co">Node</span>
+
+      <span class="r">def</span> <span class="fu">bytecode</span>(g)
+        set_current g <span class="r">do</span>
+          g.push_literal <span class="gv">$stdin</span> <span class="c"># push $stdin</span>
+          g.send <span class="sy">:getbyte</span>, <span class="i">0</span>    <span class="c"># get a byte</span>
+          g.send <span class="sy">:to_i</span>,<span class="i">0</span>        <span class="c"># call to i</span>
+        <span class="r">end</span>
+      <span class="r">end</span>
+    <span class="r">end</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<h3 id="astvalvar">AST::ValVar</h3>
+
+<p>This could just be “add size to the current value”, but it would not work. We
+want our value to stay a valid byte (we could implement Brainfuck with unicode
+codepoints or anything else if we wanted to, though), so we must stay between 0
+and 256. We’ll thus set the current value to <code>(current + size) % 256</code>.</p>
+
+<pre class="ruby"><code><span class="r">module</span> <span class="cl">Brainfuck</span>
+  <span class="r">module</span> <span class="cl">AST</span>
+    <span class="co">ValVar</span> = <span class="co">Struct</span>.new <span class="sy">:size</span> <span class="r">do</span>
+      include <span class="co">Node</span>
+
+      <span class="r">def</span> <span class="fu">bytecode</span>(g)
+        set_current g <span class="r">do</span>
+          push_current g      <span class="c"># push current value</span>
+          g.push_literal size <span class="c"># push size</span>
+          g.send <span class="sy">:+</span>, <span class="i">1</span>        <span class="c"># add them</span>
+
+          g.push_literal <span class="i">256</span>  <span class="c"># push 256</span>
+          g.send <span class="sy">:%</span>, <span class="i">1</span>        <span class="c"># mod</span>
+        <span class="r">end</span>
+      <span class="r">end</span>
+    <span class="r">end</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<h3 id="astposvar">AST::PosVar</h3>
+
+<p>This is pretty much the same as <code>ValVar</code>, except we do it for the cursor,
+which must stay a valid index (between 0 and <code>BufferSize</code>, 3000 in this
+case).</p>
+
+<pre class="ruby"><code><span class="r">module</span> <span class="cl">Brainfuck</span>
+  <span class="r">module</span> <span class="cl">AST</span>
+    <span class="co">PosVar</span> = <span class="co">Struct</span>.new <span class="sy">:size</span> <span class="r">do</span>
+      <span class="r">def</span> <span class="fu">bytecode</span>(g)
+        g.push_local <span class="co">Pointer</span>      <span class="c"># push pointer</span>
+        g.push_literal size       <span class="c"># push size</span>
+        g.send <span class="sy">:+</span>, <span class="i">1</span>              <span class="c"># add them</span>
+
+        g.push_literal <span class="co">BufferSize</span> <span class="c"># push buffer size</span>
+        g.send <span class="sy">:%</span>, <span class="i">1</span>              <span class="c"># mod</span>
+
+        g.set_local <span class="co">Pointer</span>       <span class="c"># set pointer</span>
+        g.pop                     <span class="c"># don't forget pop</span>
+      <span class="r">end</span>
+    <span class="r">end</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<h2 id="astloop">AST::Loop</h2>
+
+<p>Loops are the funniest part: you must implement this yourself:</p>
+
+<pre class="ruby"><code><span class="r">while</span> buffer[pointer] != <span class="i">0</span>
+  run_instructions
+<span class="r">end</span>
+</code></pre>
+
+<p>To do this, the generator won’t provide something to implement while
+yourself. Instead, you’ll have to use labels and gotos yourself. :)</p>
+
+<pre class="ruby"><code><span class="r">module</span> <span class="cl">Brainfuck</span>
+  <span class="r">module</span> <span class="cl">AST</span>
+    <span class="co">Loop</span> = <span class="co">Struct</span>.new <span class="sy">:seq</span> <span class="r">do</span>
+      include <span class="co">Node</span>
+
+      <span class="r">def</span> <span class="fu">bytecode</span>(g)
+        start, check = g.new_label, g.new_label <span class="c"># create a few labels</span>
+
+        g.goto check <span class="c"># first goto the place where we check if we must loop</span>
+
+        start.set! <span class="c"># this is the beginning of the loop</span>
+
+        seq.each <span class="r">do</span> |o| <span class="c"># run the body</span>
+          o.bytecode g
+        <span class="r">end</span>
+
+        check.set! <span class="c"># this is where we check the current value</span>
+
+        push_current g <span class="c"># push current value</span>
+        g.meta_push_0  <span class="c"># push 0</span>
+        g.send <span class="sy">:==</span>, <span class="i">1</span>  <span class="c"># compare</span>
+
+        g.goto_if_false start <span class="c"># continue if it's not 0</span>
+      <span class="r">end</span>
+    <span class="r">end</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<h2 id="compiler">Compiler</h2>
+
+<p>Rubinius’ compiler interface uses stages to go from our code to whatever is the
+output. We’ll only use two stages, and let Rubinius handle the end of the work:
+firstly, going from Brainfuck to AST, then, from AST to bytecode.</p>
+
+<p>First step is quite easy, since we already have our parser to do it:</p>
+
+<pre class="ruby"><code><span class="r">module</span> <span class="cl">Brainfuck</span>
+  <span class="r">module</span> <span class="cl">Stages</span>
+    <span class="r">class</span> <span class="cl">Generator</span> &lt; <span class="co">Rubinius</span>::<span class="co">Compiler</span>::<span class="co">Stage</span>
+      <span class="c"># later!</span>
+    <span class="r">end</span>
+
+    <span class="r">class</span> <span class="cl">Code</span> &lt; <span class="co">Rubinius</span>::<span class="co">Compiler</span>::<span class="co">Stage</span>
+      stage      <span class="sy">:bf_code</span>
+      next_stage <span class="co">Generator</span>
+
+      <span class="r">def</span> <span class="fu">initialize</span>(compiler, last)
+        <span class="r">super</span>
+        <span class="c"># tell the compiler we want to get the code</span>
+        compiler.parser = <span class="pc">self</span>
+      <span class="r">end</span>
+
+      attr_accessor <span class="sy">:code</span>
+
+      <span class="r">def</span> <span class="fu">run</span>
+        <span class="iv">@output</span> = <span class="co">Brainfuck</span>::<span class="co">Parser</span>.parse(<span class="iv">@code</span>)
+        run_next
+      <span class="r">end</span>
+    <span class="r">end</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>…and second step is easy as well, since we have <code>AST::Script#bytecode</code> :)</p>
+
+<pre class="ruby"><code><span class="r">module</span> <span class="cl">Brainfuck</span>
+  <span class="r">module</span> <span class="cl">Stages</span>
+    <span class="r">class</span> <span class="cl">Generator</span> &lt; <span class="co">Rubinius</span>::<span class="co">Compiler</span>::<span class="co">Stage</span>
+      next_stage <span class="co">Rubinius</span>::<span class="co">Compiler</span>::<span class="co">Encoder</span>
+
+      <span class="r">def</span> <span class="fu">initialize</span>(compiler, last)
+        <span class="r">super</span>
+        compiler.generator = <span class="pc">self</span>
+      <span class="r">end</span>
+
+      <span class="r">def</span> <span class="fu">run</span>
+        <span class="iv">@output</span> = <span class="co">Rubinius</span>::<span class="co">Generator</span>.new
+        <span class="iv">@input</span>.bytecode <span class="iv">@output</span>
+        <span class="iv">@output</span>.close
+
+        run_next
+      <span class="r">end</span>
+    <span class="r">end</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>To trigger those steps, we’ll just create or compiler class, but a very simple
+one: we’ll just create an instance to go from Brainfuck to a compiled methods.</p>
+
+<pre class="ruby"><code><span class="r">module</span> <span class="cl">Brainfuck</span>
+  <span class="r">class</span> <span class="cl">Compiler</span> &lt; <span class="co">Rubinius</span>::<span class="co">Compiler</span>
+    <span class="r">def</span> <span class="pc">self</span>.<span class="fu">compile_code</span>(code)
+      compiler = new <span class="sy">:bf_code</span>, <span class="sy">:compiled_method</span>
+      compiler.parser.code = code
+      compiler.run
+    <span class="r">end</span>
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>And now comes the method all this has been written for: <code>Brainfuck#run</code>. We
+just compile the code, setup a few things for Rubinius to work, and call it, at
+last.</p>
+
+<pre class="ruby"><code><span class="r">module</span> <span class="cl">Brainfuk</span>
+  module_function
+  <span class="r">def</span> <span class="fu">run</span>(code)
+    meth = <span class="co">Compiler</span>.compile_code(code)
+    meth.scope = binding.static_scope.dup
+    meth.name = <span class="sy">:__eval__</span>
+
+    script = <span class="co">Rubinius</span>::<span class="co">CompiledMethod</span>::<span class="co">Script</span>.new(meth, <span class="s"><span class="dl">"</span><span class="k">(eval)</span><span class="dl">"</span></span>, <span class="pc">true</span>)
+    script.eval_binding = binding
+    script.eval_source  = code
+
+    meth.scope.script = script
+
+    be = <span class="co">Rubinius</span>::<span class="co">BlockEnvironment</span>.new
+    be.under_context(binding.variables, meth)
+    be.from_eval!
+    be.call
+  <span class="r">end</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>Now let’s see if all those efforts were vain, or if this works!</p>
+
+<pre class="term"><code>pry(main)&gt; load "bf_rbx.rb"
+=&gt; true
+pry(main)&gt; Brainfuck.run("++++++++++[&gt;+++++++&gt;++++++++++&gt;+++&gt;+&lt;&lt;&lt;&lt;-]&gt;++.&gt;+.
+pry(main)* +++++++..+++.&gt;++.&lt;&lt;+++++++++++++++.&gt;.+++.------.--------.&gt;+.&gt;.");
+Hello World!
+</code></pre>
+
+<p>Now you can have fun and run complex scripts like
+<a href="http://pascal.cormier.free.fr/gbf/tests/out.bf">this one</a> on the Rubinius
+VM. :)</p>
+    </div>
+
+    <div id="sidebar">
+      <h2><a href="/index.html">Home</a></h2>
+
+      <h2>Sons récents</h2>
+      <ul>
+        
+          <li><a href="/posts/brainfuck.html">Brainfuck on Rubinius</a></li>
+        
+          <li><a href="/posts/plugins.html">Plugins in Ruby</a></li>
+        
+          <li><a href="/posts/debugger.html">Rubinius Debugging API</a></li>
+        
+      </ul>
+
+      <h2>Moi</h2>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+      </ul>
+    </div>
+  </body>
+</html>
