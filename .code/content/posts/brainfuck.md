@@ -507,7 +507,7 @@ First step is quite easy, since we already have our parser to do it:
 {:.ruby}
 
 To trigger those steps, we'll just create or compiler class, but a very simple
-one: we'll just create an instance to go from Brainfuck to a compiled methods.
+one: we'll just create an instance to go from Brainfuck to a compiled method.
 
     module Brainfuck
       class Compiler < Rubinius::Compiler
