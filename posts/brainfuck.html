@@ -358,7 +358,7 @@ so we’ll get 0 at EOF (in which case getbyte returns nil).</p>
         set_current g <span class="r">do</span>
           g.push_literal <span class="gv">$stdin</span> <span class="c"># push $stdin</span>
           g.send <span class="sy">:getbyte</span>, <span class="i">0</span>    <span class="c"># get a byte</span>
-          g.send <span class="sy">:to_i</span>,<span class="i">0</span>        <span class="c"># call to i</span>
+          g.send <span class="sy">:to_i</span>, <span class="i">0</span>       <span class="c"># call to i</span>
         <span class="r">end</span>
       <span class="r">end</span>
     <span class="r">end</span>
@@ -418,7 +418,7 @@ case).</p>
 <span class="r">end</span>
 </code></pre>
 
-<h2 id="astloop">AST::Loop</h2>
+<h3 id="astloop">AST::Loop</h3>
 
 <p>Loops are the funniest part: you must implement this yourself:</p>
 

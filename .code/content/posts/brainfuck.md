@@ -344,7 +344,7 @@ so we'll get 0 at EOF (in which case getbyte returns nil).
             set_current g do
               g.push_literal $stdin # push $stdin
               g.send :getbyte, 0    # get a byte
-              g.send :to_i,0        # call to i
+              g.send :to_i, 0       # call to i
             end
           end
         end
@@ -404,7 +404,7 @@ case).
     end
 {:.ruby}
 
-## AST::Loop
+### AST::Loop
 
 Loops are the funniest part: you must implement this yourself:
 
