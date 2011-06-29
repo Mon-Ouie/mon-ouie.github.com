@@ -57,6 +57,8 @@ nodes for each part of the code. We'll keep track of the amount of position and
 value variations. When we reach an instruction that doesn't change the position,
 we reset the position counter and generate the ``PosVar``; same with ``ValVar``.
 
+    require 'strscan'
+
     module Brainfuck
       module Parser
         class Error < StandardError

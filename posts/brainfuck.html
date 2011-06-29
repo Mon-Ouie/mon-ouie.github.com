@@ -73,7 +73,9 @@ nodes for each part of the code. We’ll keep track of the amount of position an
 value variations. When we reach an instruction that doesn’t change the position,
 we reset the position counter and generate the <code>PosVar</code>; same with <code>ValVar</code>.</p>
 
-<pre class="ruby"><code><span class="r">module</span> <span class="cl">Brainfuck</span>
+<pre class="ruby"><code>require <span class="s"><span class="dl">'</span><span class="k">strscan</span><span class="dl">'</span></span>
+
+<span class="r">module</span> <span class="cl">Brainfuck</span>
   <span class="r">module</span> <span class="cl">Parser</span>
     <span class="r">class</span> <span class="cl">Error</span> &lt; <span class="co">StandardError</span>
       <span class="r">def</span> <span class="fu">initialize</span>
