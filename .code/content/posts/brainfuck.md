@@ -95,6 +95,7 @@ we reset the position counter and generate the ``PosVar``; same with ``ValVar``.
               generate_pos_variation(ret, pos_var)
               pos_var  = 0
               val_var -= 1
+
             when '>'
               generate_val_variation(ret, val_var)
               val_var  = 0
@@ -277,7 +278,7 @@ as constants to make the code clearer.
 ### AST::Node
 
 We'll need to change the value of the buffer quite often, so writing a mixin to
-generate code used for this will help us to avoid repititons.
+generate code used for this will help us to avoid repititions.
 
     module Brainfuck
       module AST
