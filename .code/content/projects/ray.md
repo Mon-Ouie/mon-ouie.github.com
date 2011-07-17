@@ -990,7 +990,7 @@ default one:
     end
 {:.ruby}
 
-Notice that trying to use one of Ray's drawables with a such shader will simply fail.
+Notice that trying to use one of Ray's drawables with such a shader will simply fail.
 
 Audio
 -----
@@ -1047,7 +1047,7 @@ in a cache, just like images:
 ### Spatialization
 
 It is possible to give the illusion that a sound is played from a different
-place. All you need to do is setting a positio to your sound:
+place. All you need to do is setting a position to your sound:
 
     sound.pos = [0, 0.5, 10]
 {:.ruby}
