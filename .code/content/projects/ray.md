@@ -43,7 +43,7 @@ platforms *but* Windows you will need a few dependencies:
   1. GLEW
   2. libsndfile
   3. Freetype (already installed on OS X)
-  4. Xlib (not on OS X)
+  4. Xlib (not needed on OS X)
   5. OpenAL (already installed on OS X)
   6. OpenGL (already installed on OS X)
 
