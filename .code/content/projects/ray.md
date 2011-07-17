@@ -354,7 +354,7 @@ drawn. However, Ray also provides a default font, to be able to draw text even
 without having a font file.
 
     font "foo.tttf" # cached
-    Ray::Fond.default
+    Ray::Font.default
 {:.ruby}
 
 A helper method to create text is available; it is similar to ``#sprite``:
@@ -596,7 +596,7 @@ to get automatic updates:
 
 There are also two methods you can call once you started your animation to
 change how it will be executed: ``loop!``, which will cause it to be repeated
-over and over, and ``bounce!``, which will cause the animation and a an
+over and over, and ``bounce!``, which will cause the animation and an
 animation reversing its effect to alternate.
 
 ### Creating custom animations
@@ -605,11 +605,11 @@ The speed of that translation is constant. If we wanted an acceleration to be
 applied to the animation, we'd have to implement it manually.
 
     class AcceleratedTranslation < Ray::Animation
-      register_for :accelerated_transation
+      register_for :accelerated_translation
     end
 {:.ruby}
 
-This is enough to define ``Ray::Helper#accelerated_transation``, which returns
+This is enough to define ``Ray::Helper#accelerated_translation``, which returns
 an instance of our class. It also calls ``setup`` on our object to define
 parameters which don't depend on our target:
 
@@ -630,7 +630,7 @@ parameters which don't depend on our target:
     end
 {:.ruby}
 
-This code uses the hash we pass to ``accelerated_transation`` to define
+This code uses the hash we pass to ``accelerated_translation`` to define
 parameters we'll use later.
 
 Every time the animation is started, it needs to note the initial position of
@@ -668,7 +668,7 @@ And you can now try this animation:
         @red_rect  = Ray::Polygon.rectangle([-25, -25, 50, 50], Ray::Color.red)
         @blue_rect = Ray::Polygon.rectangle([-25, -25, 50, 50], Ray::Color.blue)
 
-        animations << accelerated_transation(:of => [200, 400], :speed => 0,
+        animations << accelerated_translation(:of => [200, 400], :speed => 0,
                                              :duration => 3).start(@red_rect)
         animations << translation(:of => [200, 400], :duration => 3).
           start(@blue_rect)
@@ -859,6 +859,15 @@ shaders. This can be done using the ``#[]=`` method:
      shader[:foo] = [0, 1, 2]
      shader[:bar] = 32.0
 {:.ruby}
+
+Ray allows to set uniforms of many types, but not arrays that contain more than
+4 floats, or that contain something else than float. You'll need to fill them
+manually:
+
+    # Assuming array is an array of vec3.
+    shader["array[2]"] = [0.1, 2.1, 3.4]
+{:.ruby}
+
 
 Custom drawables
 ----------------
