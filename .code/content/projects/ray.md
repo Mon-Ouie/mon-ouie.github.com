@@ -47,6 +47,15 @@ platforms *but* Windows you will need a few dependencies:
   5. OpenAL (already installed on OS X)
   6. OpenGL (already installed on OS X)
 
+Here's how you could install them:
+
+    pacman -S glew libsndfile freetype2 openal # Archlinux
+
+    # OSX
+    port install glew libsndfile # or...
+    brew install glew libsndfile
+{:.term}
+
 Once you have this, you can run the normal installation command:
 
     gem install ray
