@@ -61,7 +61,16 @@ platforms <em>but</em> Windows you will need a few dependencies:</p>
   <li>Xlib (not on OS X)</li>
   <li>OpenAL (already installed on OS X)</li>
   <li>OpenGL (already installed on OS X)</li>
-</ol><p>Once you have this, you can run the normal installation command:</p>
+</ol><p>Here’s how you could install them:</p>
+
+<pre class="term"><code>pacman -S glew libsndfile freetype2 openal # Archlinux
+
+# OSX
+port install glew libsndfile # or...
+brew install glew libsndfile
+</code></pre>
+
+<p>Once you have this, you can run the normal installation command:</p>
 
 <pre class="term"><code>gem install ray
 </code></pre>
