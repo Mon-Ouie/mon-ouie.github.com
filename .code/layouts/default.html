@@ -18,6 +18,8 @@
         <div id="post-date">
           <%= post.date %>
         </div>
+      <% elsif proj = Project.of(@item) %>
+        <h1><%= proj.title %></h1>
       <% end %>
 
       <%= yield %>
@@ -30,6 +32,13 @@
       <ul>
         <% Post.all(@items)[0, 10].each do |post| %>
           <li><%= post.link %></li>
+        <% end %>
+      </ul>
+
+      <h2>Projets</h2>
+      <ul>
+        <% Project.all(@items).each do |proj| %>
+          <li><%= proj.link %></li>
         <% end %>
       </ul>
 

@@ -1,0 +1,1223 @@
+<!DOCTYPE HTML>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Moi, mon ouïe - Ray</title>
+    <link rel="stylesheet" type="text/css" href="/style.css" media="screen">
+    <link rel="alternate"  type="application/atom+xml"
+          title="Moi, mon ouïe"
+          href="/feed.atom"/>
+    <meta name="generator" content="nanoc 3.1.7">
+  </head>
+
+  <body>
+    <div id="main">
+      
+        <h1>Ray</h1>
+      
+
+      <h2 id="introduction">Introduction</h2>
+
+<p>Ray is a library to write games in Ruby. It uses a DSL meant to be fun to
+use. Here’s, for example, a “Hello world” written using Ray:</p>
+
+<pre class="ruby"><code>require <span class="s"><span class="dl">'</span><span class="k">ray</span><span class="dl">'</span></span>
+
+<span class="co">Ray</span>.game <span class="s"><span class="dl">"</span><span class="k">Hello world!</span><span class="dl">"</span></span> <span class="r">do</span>
+  register { add_hook <span class="sy">:quit</span>, method(<span class="sy">:exit!</span>) }
+
+  scene <span class="sy">:hello</span> <span class="r">do</span>
+    <span class="iv">@text</span> = text <span class="s"><span class="dl">"</span><span class="k">Hello world!</span><span class="dl">"</span></span>, <span class="sy">:angle</span> =&gt; <span class="i">30</span>, <span class="sy">:at</span> =&gt; [<span class="i">100</span>, <span class="i">100</span>], <span class="sy">:size</span> =&gt; <span class="i">30</span>
+    render { |win| win.draw <span class="iv">@text</span> }
+  <span class="r">end</span>
+
+  scenes &lt;&lt; <span class="sy">:hello</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>And this is not all Ray is capable of; here are some screenshots of what can be
+achieved with it:</p>
+
+<p><img src="/images/teapot.png" alt="Teapot"></p>
+
+<p>(Yes, it can do 3D as well.)</p>
+
+<p><img src="/images/cptn.png" alt="Captain Ruby"></p>
+
+<p>The code is available on <a href="https://github.com/Mon-Ouie/ray">Github</a>, with many samples.</p>
+
+<h2 id="installation">Installation</h2>
+
+<p>Installing Ray itself should be quite easy. It’s just a gem. It requires,
+however, a compiler (tested with RubyInstaller’s devkit on Windows). On all the
+platforms <em>but</em> Windows you will need a few dependencies:</p>
+
+<ol>
+<li>GLEW</li>
+  <li>libsndfile</li>
+  <li>Freetype (already installed on OS X)</li>
+  <li>Xlib (not on OS X)</li>
+  <li>OpenAL (already installed on OS X)</li>
+  <li>OpenGL (already installed on OS X)</li>
+</ol><p>Once you have this, you can run the normal installation command:</p>
+
+<pre class="term"><code>gem install ray
+</code></pre>
+
+<h2 id="starting">Starting</h2>
+
+<p>In the “Hello World!”, just like in any Ray game, the first thing that happens
+is… the creation of the game. A game is an object that will handle all the
+scenes used in your game, and create a window. The scenes it handle each
+represent a different screen shown to the user. For instance, you could have a
+scene for the main menu, one for the game itself, and another for the in-game
+menu.</p>
+
+<p>A game can be created like this:</p>
+
+<pre class="ruby"><code>game = <span class="co">Ray</span>.game <span class="s"><span class="dl">"</span><span class="k">My game</span><span class="dl">"</span></span>
+</code></pre>
+
+<p>Other options can be passed to <code>Ray.game</code>. You could change the size of the
+created window:</p>
+
+<pre class="ruby"><code>game = <span class="co">Ray</span>.game <span class="s"><span class="dl">"</span><span class="k">My game</span><span class="dl">"</span></span>, <span class="sy">:size</span> =&gt; [<span class="i">800</span>, <span class="i">800</span>] <span class="c"># Or...</span>
+game = <span class="co">Ray</span>.game <span class="s"><span class="dl">"</span><span class="k">My game</span><span class="dl">"</span></span>, <span class="sy">:size</span> =&gt; <span class="co">Ray</span>::<span class="co">Vector2</span>[<span class="i">800</span>, <span class="i">800</span>]
+</code></pre>
+
+<p>The game can then be run with <code>game.run</code>. Another way to do it is to pass a
+block to Ray.game:</p>
+
+<pre class="ruby"><code><span class="co">Ray</span>.game <span class="s"><span class="dl">"</span><span class="k">My game</span><span class="dl">"</span></span>, <span class="sy">:size</span> =&gt; [<span class="i">800</span>, <span class="i">800</span>] <span class="r">do</span>
+  <span class="c"># ...</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>Either way, nothing will happen: there are no scenes to display, which means Ray
+considers the game is done running. It is needed to define a scene, using
+<code>Ray::Game#scene</code>. Notice the block passed to <code>Ray.game</code> is run with
+<code>instance_eval</code>.</p>
+
+<pre class="ruby"><code>scene <span class="sy">:some_scene</span> <span class="r">do</span>
+  <span class="c"># ...</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>The scene is now <em>registered</em> and called <code>:some_scene</code>. However, it needs to
+be put on the stack of scenes that must be displayed. The last item of that
+stack is the currently running one. You can push and pop a scene from the stack,
+using <code>push_scene</code> and <code>pop_scene</code>. The stack is a <code>Ray::SceneList</code> object
+which you can also access directly:</p>
+
+<pre class="ruby"><code>scenes &lt;&lt; <span class="sy">:some_scene</span> <span class="c"># Or..</span>
+push_scene <span class="sy">:some_scene</span>
+</code></pre>
+
+<p>Now, the code is <em>nearly</em> working. There’s still one missing step: we are
+currently unable to quit the game. <code>Ray::Game#exit!</code> should be called when the
+user tries to close the window, which you are notified about by a <code>:quit</code>
+event.</p>
+
+<p>To run a block when an event occurs, you can use <code>#on</code>:</p>
+
+<pre class="ruby"><code>on <span class="sy">:event_name</span> <span class="r">do</span>
+  <span class="c"># ...</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>Arguments may be passed to an event. They will also be passed as arguments to
+the block. They could be used to know which key was the one that was pressed:</p>
+
+<pre class="ruby"><code>on <span class="sy">:key_press</span> <span class="r">do</span> |key, mods|
+  <span class="c"># ...</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>One can also register a block which will only be called when its arguments meet
+a condition, verified using <code>#==</code> then <code>#===</code>, as in the following example
+which runs a block when the “p” key is pressed:</p>
+
+<pre class="ruby"><code>on <span class="sy">:key_press</span>, key(<span class="sy">:p</span>) <span class="r">do</span>
+  <span class="c"># ...</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>In our case, we can also use <code>#add_hook</code>. Its parameters are the same as
+<code>#on</code>’s, but, instead of using a block, its last argument must be an object
+responding to <code>#call</code>.</p>
+
+<pre class="ruby"><code>add_hook <span class="sy">:quit</span>, method(<span class="sy">:exit!</span>)
+</code></pre>
+
+<p>This is still not it. You must register again for all the events when the scene
+is changed. This what the <code>register</code> method is for: specifying a block to be
+run every time you must register to events.</p>
+
+<p>This is what the code looks like, now:</p>
+
+<pre class="ruby"><code>require <span class="s"><span class="dl">'</span><span class="k">ray</span><span class="dl">'</span></span>
+
+<span class="co">Ray</span>.game <span class="s"><span class="dl">"</span><span class="k">My game</span><span class="dl">"</span></span>, <span class="sy">:size</span> =&gt; [<span class="i">800</span>, <span class="i">800</span>] <span class="r">do</span>
+  register { add_hook <span class="sy">:quit</span>, method(<span class="sy">:exit!</span>) }
+
+  scene <span class="sy">:some_scene</span> <span class="r">do</span>
+  <span class="r">end</span>
+
+  scenes &lt;&lt; <span class="sy">:some_scene</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>The code can now be run. The result is a black window, on which you may want to
+learn to draw…</p>
+
+<h2 id="drawing">Drawing</h2>
+
+<p>There are two kinds of objects that are used when drawing:</p>
+
+<ol>
+<li>
+    <p>Targets. They are what you are currently drawing on. This means the window
+(<code>Ray::Window</code>) most of the time, but it can also be an image
+(<code>Ray::ImageTarget</code>).</p>
+  </li>
+  <li>
+    <p>Drawables. They are what you draw on the targets. Ray currently provides 3
+kinds of drawables: Sprites (used to draw images), texts, and polygons. It
+is also possible to create your own drawable class.</p>
+  </li>
+</ol><p>Rendering happens in the <code>render</code> method of each scene, just like in the
+“Hello world!” example:</p>
+
+<pre class="ruby"><code>render <span class="r">do</span> |win|
+  <span class="c"># You ask the target to draw each object.</span>
+  win.draw <span class="iv">@text</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>Let’s introduce all of the drawable classes now.</p>
+
+<h3 id="polygons">Polygons</h3>
+
+<p>They may seem like the simplest objects you can draw: you just provide Ray with
+a bunch of points, and it joins them, filling its content. Notice this only
+is only guaranteed to work with convex polygons.</p>
+
+<p>You can create some of the most common polygons using some class methods:</p>
+
+<pre class="ruby"><code><span class="co">Ray</span>::<span class="co">Polygon</span>.rectangle([<span class="i">0</span>, <span class="i">0</span>, <span class="i">40</span>, <span class="i">40</span>], <span class="co">Ray</span>::<span class="co">Color</span>.red)
+<span class="co">Ray</span>::<span class="co">Polygon</span>.circle([<span class="i">200</span>, <span class="i">40</span>], <span class="i">30</span>, <span class="co">Ray</span>::<span class="co">Color</span>.green)
+<span class="co">Ray</span>::<span class="co">Polygon</span>.line([<span class="i">70</span>, <span class="i">70</span>], [<span class="i">500</span>, <span class="i">300</span>], <span class="i">10</span>, <span class="co">Ray</span>::<span class="co">Color</span>.new(<span class="i">127</span>, <span class="i">40</span>, <span class="i">80</span>))
+<span class="co">Ray</span>::<span class="co">Polygon</span>.ellipse([<span class="i">300</span>, <span class="i">600</span>], <span class="i">100</span>, <span class="i">50</span>, <span class="co">Ray</span>::<span class="co">Color</span>.yellow)
+</code></pre>
+
+<p>What you create when you call <code>circle</code> is just a polygon with many
+points. <code>ellipse</code> is just the same as circle, except it also scales the
+object. This can be pointed at in IRB:</p>
+
+<pre class="ruby"><code>circle = <span class="co">Ray</span>::<span class="co">Polygon</span>.circle([<span class="i">200</span>, <span class="i">40</span>], <span class="i">30</span>, <span class="co">Ray</span>::<span class="co">Color</span>.green)
+circle.size <span class="c"># =&gt; 40</span>
+
+ellipse = <span class="co">Ray</span>::<span class="co">Polygon</span>.ellipse([<span class="i">300</span>, <span class="i">600</span>], <span class="i">100</span>, <span class="i">50</span>, <span class="co">Ray</span>::<span class="co">Color</span>.yellow)
+ellipse.scale <span class="c"># =&gt; (1, 0.5)</span>
+</code></pre>
+
+<p>Notice that Ray uses <code>Vector2</code> to represent points and sizes, as well as
+scaling factors; similarily it uses <code>Vector3</code> for points in 3D space and
+<code>Rect</code> for rectangles. Ray can convert objects (most of the time, arrays) to
+those using <code>#to_vector2</code>, <code>#to_vector3</code>, and <code>#to_rect</code>.</p>
+
+<p>If you need another shape than those, you can just use <code>#add_point</code> as much as
+you need. Here’s for instance a triangle:</p>
+
+<pre class="ruby"><code><span class="r">def</span> <span class="fu">triangle</span>(a, b, c)
+  tri = <span class="co">Ray</span>::<span class="co">Polygon</span>.new
+  tri.add_point(a, <span class="co">Ray</span>::<span class="co">Color</span>.red)
+  tri.add_point(b, <span class="co">Ray</span>::<span class="co">Color</span>.green)
+  tri.add_point(c, <span class="co">Ray</span>::<span class="co">Color</span>.blue)
+  tri
+<span class="r">end</span>
+</code></pre>
+
+<p>This is how it would like like, because Ray interpolates colors:</p>
+
+<p><img src="/images/interp.png" alt="Color interpolation"></p>
+
+<p>A border whose color will also vary can be added, too:</p>
+
+<pre class="ruby"><code>poly.outline_width = <span class="i">5</span>
+poly.add_point(pos, color, outline_color)
+</code></pre>
+
+<p>Already added points can be changed:</p>
+
+<pre class="ruby"><code>poly[<span class="i">0</span>].color   = <span class="co">Ray</span>::<span class="co">Color</span>.red
+poly[<span class="i">0</span>].outline = <span class="co">Ray</span>::<span class="co">Color</span>.blue
+poly[<span class="i">0</span>].pos     = [<span class="i">30</span>, <span class="i">15</span>]
+</code></pre>
+
+<p>And the shape can be configured to draw or not to draw the border or the content
+of the polygon:</p>
+
+<pre class="ruby"><code>poly.filled   = <span class="pc">false</span>
+poly.outlined = <span class="pc">true</span>
+</code></pre>
+
+<p>You can try to move, resize, or rotate this polygon:</p>
+
+<pre class="ruby"><code>poly.scale = [<span class="fl">0.5</span>, <span class="i">3</span>]
+poly.pos   = [<span class="i">100</span>, <span class="i">100</span>]
+poly.angle = <span class="i">70</span>
+</code></pre>
+
+<p>Those methods that affect the transformations are available to all the drawables
+objects. Here’s a list of them:</p>
+
+<ol>
+<li>
+<strong>origin</strong>: Origin of all of the transformations, including
+translations.</li>
+  <li>
+<strong>pos</strong>: The position of the object, a translation (in pixel, at least by
+default).</li>
+  <li>
+<strong>angle</strong>: In degrees, determines the rotation applied to the object.</li>
+  <li>
+<strong>scale</strong>: Multiplies the size of the object.</li>
+  <li>
+<strong>matrix</strong>: This one overrides all of the previous parameters when you set
+it. It tells Ray to use an arbitrary transformation matrix. It is unlikely
+you will need this, though.</li>
+</ol><h3 id="sprites">Sprites</h3>
+
+<p>Sprites aren’t standalone objects. You can’t just create a sprite from nothing
+and draw it. It needs an image to draw.</p>
+
+<p>Images will most of the time be loaded from files. Ray keeps a cache of those
+images for you, which you can use with the <code>image</code> helper method (defined in
+<code>Ray::Helper</code>):</p>
+
+<pre class="ruby"><code>a = image <span class="s"><span class="dl">"</span><span class="k">foo.png</span><span class="dl">"</span></span>
+b = image <span class="s"><span class="dl">"</span><span class="k">foo.png</span><span class="dl">"</span></span>
+a.equal? b <span class="c"># =&gt; true</span>
+</code></pre>
+
+<p>You can also create an image just from its size and edit it manually:</p>
+
+<pre class="ruby"><code>image = <span class="co">Ray</span>::<span class="co">Image</span>.new [<span class="i">100</span>, <span class="i">100</span>]
+image.size <span class="c"># =&gt; (100, 100)</span>
+image[<span class="i">10</span>, <span class="i">10</span>] = <span class="co">Ray</span>::<span class="co">Color</span>.red
+
+<span class="c"># Images are enumerable</span>
+image.each <span class="r">do</span> |pixel|
+  <span class="c"># work</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>Or, more efficiently, you can draw drawables on it:</p>
+
+<pre class="ruby"><code>image_target image <span class="r">do</span> |target|
+  target.clear color
+
+  target.draw some_object
+
+  <span class="c"># Without this call, result of drawing would not be pushed to the</span>
+  <span class="c"># image.</span>
+  target.update
+<span class="r">end</span>
+</code></pre>
+
+<p>Notice that you probably don’t want to modify images from the cache. It’d be
+better to draw on a copy of the image, which you can get using <code>#dup</code>:</p>
+
+<pre class="ruby"><code>image.dup
+</code></pre>
+
+<p>Sprites, now, can be created just with a reference to the image or a filename:</p>
+
+<pre class="ruby"><code>sprite image
+sprite <span class="s"><span class="dl">"</span><span class="k">foo.png</span><span class="dl">"</span></span>
+</code></pre>
+
+<p>They also have many attributes: for instance, you can flip them:</p>
+
+<pre class="ruby"><code>sprite.flip_x = <span class="pc">true</span>
+</code></pre>
+
+<p>A more often used attribute, though, is that you can decide to draw only a part
+of them. This is useful if you have one file that actually contains several
+images you will always draw separately.</p>
+
+<pre class="ruby"><code><span class="c"># Defines the rect that will be shown</span>
+sprite.sub_rect = [<span class="i">10</span>, <span class="i">10</span>, <span class="i">50</span>, <span class="i">50</span>]
+
+<span class="c"># Often, you'll just want to split the image in rects of equal size and be</span>
+<span class="c"># able to switch quickly between each rect.</span>
+sprite.sheet_size = [<span class="i">4</span>, <span class="i">4</span>] <span class="c"># 4 rects wide and long</span>
+sprite.sheet_pos  = [<span class="i">1</span>, <span class="i">2</span>] <span class="c"># Selects second sprite of the third line</span>
+</code></pre>
+
+<h3 id="texts">Texts</h3>
+
+<p>Texts work similarly to sprites. They use fonts instead of images to get
+drawn. However, Ray also provides a default font, to be able to draw text even
+without having a font file.</p>
+
+<pre class="ruby"><code>font <span class="s"><span class="dl">"</span><span class="k">foo.tttf</span><span class="dl">"</span></span> <span class="c"># cached</span>
+<span class="co">Ray</span>::<span class="co">Fond</span>.default
+</code></pre>
+
+<p>A helper method to create text is available; it is similar to <code>#sprite</code>:</p>
+
+<pre class="ruby"><code>text <span class="s"><span class="dl">"</span><span class="k">content</span><span class="dl">"</span></span>, <span class="sy">:font</span> =&gt; <span class="s"><span class="dl">"</span><span class="k">foo.ttf</span><span class="dl">"</span></span>
+</code></pre>
+
+<p>If you omit <code>:font</code>, the default font will be used instead. Notice also that
+Ray can handle non-ascii (e.g. UTF-8) characters just fine.</p>
+
+<h2 id="events">Events</h2>
+
+<p>As shown previously, a block can be registered to be called when an event
+occurs. A game must register by passing a block to register, whereas this is not
+needed with a scene, since the block passed to <code>#scene</code> will be called more
+than once.</p>
+
+<p>Scenes raise events when the user moves the mouse, pushes a button, etc.</p>
+
+<table>
+<thead><tr>
+<th>Event</th>
+      <th>Arguments</th>
+      <th>Description</th>
+    </tr></thead>
+<tbody>
+<tr>
+<td>:quit</td>
+      <td>None</td>
+      <td>The user tried to close the window</td>
+    </tr>
+<tr>
+<td>:focus_gain</td>
+      <td>None</td>
+      <td>The window gained focus</td>
+    </tr>
+<tr>
+<td>:focus_loss</td>
+      <td>None</td>
+      <td>The window lost focus</td>
+    </tr>
+<tr>
+<td>:mouse_entered</td>
+      <td>None</td>
+      <td>The mouse entered the window</td>
+    </tr>
+<tr>
+<td>:mouse_left</td>
+      <td>None</td>
+      <td>The mouse left the window</td>
+    </tr>
+<tr>
+<td>:mouse_motion</td>
+      <td>pos</td>
+      <td>The mouse was moved</td>
+    </tr>
+<tr>
+<td>:wheel_motion</td>
+      <td>pos, delta</td>
+      <td>The mouse wheel was moved</td>
+    </tr>
+<tr>
+<td>:mouse_press</td>
+      <td>button, pos</td>
+      <td>A mouse button was pressed</td>
+    </tr>
+<tr>
+<td>:mouse_release</td>
+      <td>button, pos</td>
+      <td>A mouse button was released</td>
+    </tr>
+<tr>
+<td>:key_press</td>
+      <td>key, mod_keys</td>
+      <td>A key was pressed</td>
+    </tr>
+<tr>
+<td>:key_release</td>
+      <td>key, mod_keys</td>
+      <td>A key was released</td>
+    </tr>
+<tr>
+<td>:window_resize</td>
+      <td>size</td>
+      <td>The window was resized</td>
+    </tr>
+</tbody>
+</table><table>
+<thead><tr>
+<th>Argument</th>
+      <th>Class</th>
+      <th>Description</th>
+    </tr></thead>
+<tbody>
+<tr>
+<td>pos</td>
+      <td>Ray::Vector2</td>
+      <td>Position of the mouse</td>
+    </tr>
+<tr>
+<td>delta</td>
+      <td>Float</td>
+      <td>Difference with the previous value</td>
+    </tr>
+<tr>
+<td>button</td>
+      <td>Symbol</td>
+      <td>Mouse button (:left, :middle, :right, :extra1, :extra2)</td>
+    </tr>
+<tr>
+<td>key</td>
+      <td>Integer</td>
+      <td>Code of a key</td>
+    </tr>
+<tr>
+<td>mod_keys</td>
+      <td>Integer</td>
+      <td>Byteflag of pressed modifiers (shift, alt, control)</td>
+    </tr>
+<tr>
+<td>size</td>
+      <td>Ray::Vector2</td>
+      <td>New size of the window</td>
+    </tr>
+</tbody>
+</table><p>Notice you don’t need to use the key code directly. <code>Ray::Helper#key</code> returns
+a <code>Key</code> object, using a key name:</p>
+
+<pre class="ruby"><code>on <span class="sy">:key_press</span>, key(<span class="sy">:left</span>) <span class="r">do</span>
+  <span class="c"># ...</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>Same for <code>#key_mod</code>, with <code>:ctrl</code>, <code>:shift</code>, or <code>:alt</code>:</p>
+
+<pre class="ruby"><code>on <span class="sy">:key_press</span>, key(<span class="sy">:left</span>), key_mod(<span class="sy">:ctrl</span>) <span class="r">do</span>
+  <span class="c"># ...</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>There’s another event that can be useful: <code>text_entered</code>. It is raised when
+the users presses on keys that match a character. In Ruby 1.9, encoding is set
+correctly. In 1.8, it will probably be useful to convert it to another encoding,
+as UTF-32 is used by Ray. Ray provides helper methods that work both on 1.9 and
+1.8 to convert the string to the encoding of your choice (defaulting to UTF-8):</p>
+
+<pre class="ruby"><code>on <span class="sy">:text_entered</span> <span class="r">do</span> |char|
+  p <span class="co">Ray</span>::<span class="co">TextHelper</span>.convert(char)
+<span class="r">end</span>
+</code></pre>
+
+<p>It’s also worth nothing that in the case of resize events (which will only occur
+if you set the resizable parameter to true when you created the game), you will
+most likely want to adapt Ray’s projection to the window size, which doesn’t
+happen automatically (for fear that Ray would erase some of your precious data):</p>
+
+<pre class="ruby"><code>on <span class="sy">:window_resize</span> <span class="r">do</span> |size|
+  <span class="c"># Default view still will be updated.</span>
+  window.view = window.default_view
+<span class="r">end</span>
+</code></pre>
+
+<p>Those events are what makes the game interactive. You can now write programs
+that react to user input:</p>
+
+<pre class="ruby"><code>require <span class="s"><span class="dl">'</span><span class="k">ray</span><span class="dl">'</span></span>
+
+<span class="co">Ray</span>.game <span class="s"><span class="dl">"</span><span class="k">Test</span><span class="dl">"</span></span> <span class="r">do</span>
+  register { add_hook <span class="sy">:quit</span>, method(<span class="sy">:exit!</span>) }
+
+  scene <span class="sy">:square</span> <span class="r">do</span>
+    <span class="iv">@rect</span> = <span class="co">Ray</span>::<span class="co">Polygon</span>.rectangle([<span class="i">-10</span>, <span class="i">-10</span>, <span class="i">20</span>, <span class="i">20</span>], <span class="co">Ray</span>::<span class="co">Color</span>.red)
+
+    on <span class="sy">:mouse_motion</span> <span class="r">do</span> |pos|
+      <span class="iv">@rect</span>.pos = pos
+    <span class="r">end</span>
+
+    render <span class="r">do</span> |win|
+      win.draw <span class="iv">@rect</span>
+    <span class="r">end</span>
+  <span class="r">end</span>
+
+  scenes &lt;&lt; <span class="sy">:square</span>
+<span class="r">end</span>
+</code></pre>
+
+<h2 id="scenes">Scenes</h2>
+
+<p>Scenes can do more than what was already mentioned. For instance, one can do
+something every time the scene is rendered:</p>
+
+<pre class="ruby"><code>always <span class="r">do</span>
+  puts <span class="s"><span class="dl">"</span><span class="k">here again</span><span class="dl">"</span></span>
+<span class="r">end</span>
+</code></pre>
+
+<p>And by running this program, you’ll see this message printed 60 times per
+second. That’s because Ray blocks frame rate to 60 frames per second by
+default. This limit can be changed or removed:</p>
+
+<pre class="ruby"><code><span class="pc">self</span>.frames_per_second = <span class="i">10</span>
+<span class="pc">self</span>.frames_per_second = <span class="pc">nil</span>
+</code></pre>
+
+<p>When using <code>#always</code>, you may want to know if a key is pressed right now. One
+way would be to keep track of pressed keys:</p>
+
+<pre class="ruby"><code><span class="iv">@holding_a</span> = <span class="pc">false</span>
+
+on <span class="sy">:key_press</span>, key(<span class="sy">:a</span>) <span class="r">do</span>
+  <span class="iv">@holding_a</span> = <span class="pc">true</span>
+<span class="r">end</span>
+
+on <span class="sy">:key_release</span>, key(<span class="sy">:a</span>) <span class="r">do</span>
+  <span class="iv">@holding_a</span> = <span class="pc">false</span>
+<span class="r">end</span>
+
+always <span class="r">do</span>
+  puts <span class="s"><span class="dl">"</span><span class="k">holding a</span><span class="dl">"</span></span> <span class="r">if</span> <span class="iv">@holding_a</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>But Ray can do it for you:</p>
+
+<pre class="ruby"><code>always <span class="r">do</span>
+  puts <span class="s"><span class="dl">"</span><span class="k">holding a</span><span class="dl">"</span></span> <span class="r">if</span> holding? <span class="sy">:a</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>An important step in the lifetime of a scene is the one where it cleans up
+what’s not needed anymore. For instance, you can free images you don’t need
+anymore:</p>
+
+<pre class="ruby"><code>clean_up <span class="r">do</span>
+  <span class="co">Ray</span>::<span class="co">ImageSet</span>.delete_if { |name, img| used_images.include? name }
+<span class="r">end</span>
+</code></pre>
+
+<h3 id="subclassing-rayscene">Subclassing Ray::Scene</h3>
+
+<p>When having many scenes, putting all of their content in a single file is not
+quite easy to maintain. Ray allows to separate them in different classes:</p>
+
+<pre class="ruby"><code><span class="r">class</span> <span class="cl">MyScene</span> &lt; <span class="co">Ray</span>::<span class="co">Scene</span>
+  scene_name <span class="sy">:my_scene</span>
+
+  <span class="r">def</span> <span class="fu">setup</span>
+    <span class="iv">@sprite</span> = sprite <span class="s"><span class="dl">"</span><span class="k">img.png</span><span class="dl">"</span></span>
+  <span class="r">end</span>
+
+  <span class="r">def</span> <span class="fu">register</span>
+    on <span class="sy">:key_press</span>, key(<span class="sy">:return</span>) <span class="r">do</span>
+      pop_scene
+    <span class="r">end</span>
+  <span class="r">end</span>
+
+  <span class="r">def</span> <span class="fu">render</span>(win)
+    <span class="iv">@sprite</span>.draw_on win
+  <span class="r">end</span>
+
+  <span class="r">def</span> <span class="fu">clean_up</span>
+    <span class="iv">@sprite</span> = <span class="pc">nil</span>
+    <span class="co">Ray</span>::<span class="co">ImageSet</span>.clear
+  <span class="r">end</span>
+<span class="r">end</span>
+
+<span class="co">Ray</span>.game <span class="s"><span class="dl">"</span><span class="k">test</span><span class="dl">"</span></span> <span class="r">do</span>
+  <span class="co">MyScene</span>.bind(<span class="pc">self</span>)
+  scenes &lt;&lt; <span class="sy">:my_scene</span>
+<span class="r">end</span>
+</code></pre>
+
+<h2 id="animations">Animations</h2>
+
+<p>If you want to move an object, you can just write something like:</p>
+
+<pre class="ruby"><code>object.pos += [<span class="i">30</span>, <span class="i">40</span>]
+</code></pre>
+
+<p>However, the object will directly be moved. Animating the object moving would be
+much nicer. Ray has an animation class for this. So, this is the translation
+described above, with a duration of 3 seconds:</p>
+
+<pre class="ruby"><code>anim = translation(<span class="sy">:of</span> =&gt; [<span class="i">30</span>, <span class="i">40</span>], <span class="sy">:duration</span> =&gt; <span class="i">3</span>)
+</code></pre>
+
+<p>Ray provides many other animations, like sprite animations, combinations,
+rotations, color variation, etc.</p>
+
+<p>Now, you need to start the animation by passing a target to it — an animation
+can be used several times with different targets.</p>
+
+<pre class="ruby"><code>anim.start object
+</code></pre>
+
+<p>This isn’t enough for the change to be applied. You need to update the animation
+often, usually by using the block passed to <code>always</code>:</p>
+
+<pre class="ruby"><code>always <span class="r">do</span>
+  anim.update
+<span class="r">end</span>
+</code></pre>
+
+<p>Notice animations can be paused and resumed:</p>
+
+<pre class="ruby"><code>anim.pause
+anim.resume
+</code></pre>
+
+<p>As most of the time, all you need to do once the animation was started is
+updating it, there’s an animation list to which you can just add your animation
+to get automatic updates:</p>
+
+<pre class="ruby"><code>animations &lt;&lt; anim
+</code></pre>
+
+<p>There are also two methods you can call once you started your animation to
+change how it will be executed: <code>loop!</code>, which will cause it to be repeated
+over and over, and <code>bounce!</code>, which will cause the animation and a an
+animation reversing its effect to alternate.</p>
+
+<h3 id="creating-custom-animations">Creating custom animations</h3>
+
+<p>The speed of that translation is constant. If we wanted an acceleration to be
+applied to the animation, we’d have to implement it manually.</p>
+
+<pre class="ruby"><code><span class="r">class</span> <span class="cl">AcceleratedTranslation</span> &lt; <span class="co">Ray</span>::<span class="co">Animation</span>
+  register_for <span class="sy">:accelerated_transation</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>This is enough to define <code>Ray::Helper#accelerated_transation</code>, which returns
+an instance of our class. It also calls <code>setup</code> on our object to define
+parameters which don’t depend on our target:</p>
+
+<pre class="ruby"><code><span class="r">def</span> <span class="fu">setup</span>(opts)
+  <span class="pc">self</span>.duration = opts[<span class="sy">:duration</span>]
+
+  <span class="iv">@variation</span>     = opts[<span class="sy">:of</span>].to_vector2
+  <span class="iv">@initial_speed</span> = opts[<span class="sy">:speed</span>]
+
+  distance = <span class="co">Math</span>.sqrt(<span class="iv">@variation</span>.x ** <span class="i">2</span> + <span class="iv">@variation</span>.y ** <span class="i">2</span>)
+
+  <span class="iv">@cos_angle</span> = <span class="iv">@variation</span>.x / distance
+  <span class="iv">@sin_angle</span> = <span class="iv">@variation</span>.y / distance
+
+  <span class="c"># dist = Vi * t + (a * t ** 2) / 2</span>
+  <span class="c"># 2(dist - Vi * t) / t ** 2 = a</span>
+  <span class="iv">@acceleration</span> = <span class="i">2</span> * (distance - <span class="iv">@initial_speed</span> * duration) / duration ** <span class="i">2</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>This code uses the hash we pass to <code>accelerated_transation</code> to define
+parameters we’ll use later.</p>
+
+<p>Every time the animation is started, it needs to note the initial position of
+its target:</p>
+
+<pre class="ruby"><code><span class="r">def</span> <span class="fu">setup_target</span>
+  <span class="iv">@initial_pos</span> = target.pos
+<span class="r">end</span>
+</code></pre>
+
+<p>Now, the main part of the animation is the method which will update the position
+of the target. We can get the progression of the animation as a number between 0
+and 1 using the <code>progression</code> method.</p>
+
+<pre class="ruby"><code><span class="r">def</span> <span class="fu">update_target</span>
+  target.pos = <span class="iv">@initial_pos</span> + current_variation
+<span class="r">end</span>
+
+<span class="r">def</span> <span class="fu">current_variation</span>
+  ellapsed_time = progression / * duration
+
+  current_distance = (<span class="iv">@initial_speed</span> * ellapsed_time) +
+    (<span class="iv">@acceleration</span> * ellapsed_time ** <span class="i">2</span>) / <span class="i">2</span>
+
+  <span class="co">Ray</span>::<span class="co">Vector2</span>[<span class="iv">@cos_angle</span> * current_distance, <span class="iv">@sin_angle</span> * current_distance]
+<span class="r">end</span>
+</code></pre>
+
+<p>And you can now try this animation:</p>
+
+<pre class="ruby"><code><span class="co">Ray</span>.game <span class="s"><span class="dl">"</span><span class="k">Accelerated translation</span><span class="dl">"</span></span> <span class="r">do</span>
+  register { add_hook <span class="sy">:quit</span>, method(<span class="sy">:exit!</span>) }
+
+  scene <span class="sy">:test</span> <span class="r">do</span>
+    <span class="iv">@red_rect</span>  = <span class="co">Ray</span>::<span class="co">Polygon</span>.rectangle([<span class="i">-25</span>, <span class="i">-25</span>, <span class="i">50</span>, <span class="i">50</span>], <span class="co">Ray</span>::<span class="co">Color</span>.red)
+    <span class="iv">@blue_rect</span> = <span class="co">Ray</span>::<span class="co">Polygon</span>.rectangle([<span class="i">-25</span>, <span class="i">-25</span>, <span class="i">50</span>, <span class="i">50</span>], <span class="co">Ray</span>::<span class="co">Color</span>.blue)
+
+    animations &lt;&lt; accelerated_transation(<span class="sy">:of</span> =&gt; [<span class="i">200</span>, <span class="i">400</span>], <span class="sy">:speed</span> =&gt; <span class="i">0</span>,
+                                         <span class="sy">:duration</span> =&gt; <span class="i">3</span>).start(<span class="iv">@red_rect</span>)
+    animations &lt;&lt; translation(<span class="sy">:of</span> =&gt; [<span class="i">200</span>, <span class="i">400</span>], <span class="sy">:duration</span> =&gt; <span class="i">3</span>).
+      start(<span class="iv">@blue_rect</span>)
+
+    render <span class="r">do</span> |win|
+      win.draw <span class="iv">@red_rect</span>
+      win.draw <span class="iv">@blue_rect</span>
+    <span class="r">end</span>
+  <span class="r">end</span>
+
+  scenes &lt;&lt; <span class="sy">:test</span>
+<span class="r">end</span>
+</code></pre>
+
+<h2 id="views">Views</h2>
+<p>Views are cameras allowing to change what parts of the world are shown to the
+user. Typically, you would use them to implement scrolling easily.</p>
+
+<p>Every single target has a default view that depends only on its size. Here’s
+what the one of the windows we used previously look like:</p>
+
+<pre class="term"><code>#&lt;Ray::View center=(320, 240) size=(640, 480) viewport=((0, 0), (1, 1))&gt;
+</code></pre>
+
+<ol>
+<li>
+<code>center</code> is the position of the point that will be mapped to the center of
+the screen.</li>
+  <li>
+<code>size</code> is the amount of units one can see on the screen.</li>
+  <li>
+<code>viewport</code> is a rectangle that tells Ray where to draw on the target,
+using coefficients between 0 and 1.</li>
+</ol><p>If you multiply components of the viewports by the size of the target in pixels,
+you’ll get the actual viewport which will be used. You’d then notice its size is
+equal to the size of the viewport. This means one game unit is mapped to one
+pixel. Thus, everything is rendered without scaling.</p>
+
+<p>If you make the size greater, you map more game units to the same amount of
+pixels. One game unit would therefore represent less pixels, and everything
+would appear smaller. Similarly, if you make the size smaller, it will map less
+game units to the same amount of pixels, therefore making each game unit
+represent more pixels. Everything would thus appear bigger.</p>
+
+<p>Because this may sound confusing, Ray provides methods to just multiply and
+divide the size of the view:</p>
+
+<pre class="ruby"><code>view.zoom_by <span class="i">2</span>
+view.size <span class="c"># =&gt; (320, 240)</span>
+
+view.unzoom_by <span class="i">4</span>
+view.size <span class="c"># =&gt; (1280, 960)</span>
+</code></pre>
+
+<p>If you need to find what are the coordinates of the viewport for a given rect in
+pixel, you can just use <code>Target#viewport_for</code>:</p>
+
+<pre class="ruby"><code>target.viewport_for [<span class="i">10</span>, <span class="i">10</span>, <span class="i">100</span>, <span class="i">100</span>]
+</code></pre>
+
+<p>Here’s an example displaying a sprite at the center of the screen and the same
+sprite in a smaller rect, where we zoomed on the sprite:</p>
+
+<pre class="ruby"><code>require <span class="s"><span class="dl">'</span><span class="k">ray</span><span class="dl">'</span></span>
+
+<span class="co">Ray</span>.game <span class="s"><span class="dl">"</span><span class="k">View</span><span class="dl">"</span></span> <span class="r">do</span>
+  register { add_hook <span class="sy">:quit</span>, method(<span class="sy">:exit!</span>) }
+
+  scene <span class="sy">:view</span> <span class="r">do</span>
+    <span class="iv">@sprite</span> = sprite <span class="s"><span class="dl">"</span><span class="k">sprite.png</span><span class="dl">"</span></span>
+
+    <span class="c"># Notice both default_view and view actually return copies of the views</span>
+    <span class="c"># used internally.</span>
+    <span class="iv">@normal_view</span> = window.default_view
+    <span class="iv">@normal_view</span>.center = <span class="iv">@sprite</span>.rect.size / <span class="i">2</span>
+
+    <span class="iv">@zoomed_view</span> = <span class="iv">@normal_view</span>.dup
+    <span class="iv">@zoomed_view</span>.viewport = [<span class="fl">0.05</span>, <span class="fl">0.05</span>, <span class="fl">0.2</span>, <span class="fl">0.2</span>]
+    <span class="iv">@zoomed_view</span>.zoom_by <span class="i">10</span>
+
+    render <span class="r">do</span> |win|
+      win.with_view <span class="iv">@normal_view</span> <span class="r">do</span>
+        win.draw <span class="iv">@sprite</span>
+      <span class="r">end</span>
+
+      win.with_view <span class="iv">@zoomed_view</span> <span class="r">do</span>
+        win.draw <span class="iv">@sprite</span>
+      <span class="r">end</span>
+    <span class="r">end</span>
+  <span class="r">end</span>
+
+  scenes &lt;&lt; <span class="sy">:view</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>Should you ever need to do more advanced stuff, you can set <code>matrix</code> to apply
+any effect you like. In 3D, for example, you can setup a perspective projection:</p>
+
+<pre class="ruby"><code>view.matrix = <span class="co">Ray</span>::<span class="co">Matrix</span>.perspective(<span class="i">90</span>, <span class="i">640</span>.fdiv(<span class="i">480</span>), <span class="i">1</span>, <span class="i">10</span>)
+</code></pre>
+
+<h2 id="shaders">Shaders</h2>
+
+<p>Shaders are a fun way to apply cool effects to the screen. They require some
+more knowledge about OpenGl and are quite low-level, though. They are written in
+GLSL (which looks a lot like C), but I won’t teach you the language here.</p>
+
+<p>Ray knows about 3 kinds of shaders: fragment, vertex, and geometry shaders. It
+also uses two GLSL version: the deprecated one (before GLSL 1.30) and the new
+one (as of GLSL 1.30). If you want to force Ray to use old style shaders, call
+the following method:</p>
+
+<pre class="ruby"><code><span class="co">Ray</span>::<span class="co">Shader</span>.use_old!
+</code></pre>
+
+<h3 id="uniforms">Uniforms</h3>
+
+<p>Here’s a list of uniforms set by Ray:</p>
+
+<table>
+<thead><tr>
+<th>Name</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr></thead>
+<tbody>
+<tr>
+<td><code>in_ModelView</code></td>
+      <td><code>mat4</code></td>
+      <td>Transformations applied to the current object</td>
+    </tr>
+<tr>
+<td><code>in_Projection</code></td>
+      <td><code>mat4</code></td>
+      <td>Projection matrix</td>
+    </tr>
+<tr>
+<td><code>in_Texture</code></td>
+      <td><code>sampler2</code></td>
+      <td>Texture to be used when drawing</td>
+    </tr>
+<tr>
+<td><code>in_TextureEnabled</code></td>
+      <td><code>bool</code></td>
+      <td>True if texturing is enabled</td>
+    </tr>
+</tbody>
+</table><h3 id="fragment-shaders">Fragment shaders</h3>
+
+<p>They come first because they are what you’ll need most of the time in 2D. You
+are given the following input (as varyings in pre 1.30 GLSL):</p>
+
+<table>
+<thead><tr>
+<th>Name</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr></thead>
+<tbody>
+<tr>
+<td><code>var_Color</code></td>
+      <td><code>vec4</code></td>
+      <td>Color of the point</td>
+    </tr>
+<tr>
+<td><code>var_TexCoord</code></td>
+      <td><code>vec2</code></td>
+      <td>Position in the texture</td>
+    </tr>
+</tbody>
+</table><p>In deprecated style they are expected to output to gl_FragColor. In new style,
+Ray binds the output to out_FragColor.</p>
+
+<h3 id="vertex-shaders">Vertex shaders</h3>
+
+<p>Their input depends on the vertex type currently in use. The default is written
+as follows:</p>
+
+<table>
+<thead><tr>
+<th>Name</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr></thead>
+<tbody>
+<tr>
+<td><code>in_Vertex</code></td>
+      <td><code>vec2</code></td>
+      <td>Position of the vertex</td>
+    </tr>
+<tr>
+<td><code>in_Color</code></td>
+      <td><code>vec4</code></td>
+      <td>Color of the vertex</td>
+    </tr>
+<tr>
+<td><code>in_TexCoord</code></td>
+      <td><code>vec2</code></td>
+      <td>Position in the vertex</td>
+    </tr>
+</tbody>
+</table><p>They’re just expected to output to what’s the input of fragment shaders.</p>
+
+<h3 id="geometry-shaders">Geometry shaders</h3>
+
+<p>There’s not much to say about them, except that Ray doesn’t provide a way to
+manually tell GL what input they expect and what they output. You need to use
+the new style to specify this right into the code of the shader.</p>
+
+<h3 id="usage-from-ruby">Usage from Ruby</h3>
+
+<p>You can get the shader of a view and recompile it to use your own code. Notice
+<code>#shader</code> does <em>not</em> return a copy of the shaders (shaders, in fact, cannot be
+copied).</p>
+
+<pre class="ruby"><code> <span class="c"># omitted arguments (like :geometry below) mean "keep the shader used</span>
+ <span class="c"># currently".</span>
+ window.shader.compile <span class="sy">:frag</span> =&gt; <span class="s"><span class="dl">"</span><span class="k">file.glsl</span><span class="dl">"</span></span>, <span class="sy">:vertex</span> =&gt; <span class="s"><span class="dl">"</span><span class="k">vertex.glsl</span><span class="dl">"</span></span>
+
+ <span class="c"># You can use IOs or StringIOs too.</span>
+ window.shader.compile <span class="sy">:frag</span> =&gt; <span class="co">StringIO</span>.new(<span class="s"><span class="dl">&lt;&lt;-shader</span></span>)<span class="s"><span class="k">
+   /* Work! */</span><span class="dl">
+ shader</span></span>
+</code></pre>
+
+<p>You can also create your own shader with <code>Ray::Shader#new</code> and ask a drawable
+to use it.</p>
+
+<pre class="ruby"><code><span class="c"># arguments are forwarded to #compile</span>
+shader = <span class="co">Ray</span>::<span class="co">Shader</span>.new(<span class="sy">:vertex</span> =&gt; <span class="s"><span class="dl">"</span><span class="k">...</span><span class="dl">"</span></span>)
+
+object.shader = shader
+</code></pre>
+
+<p>You’ll probably want to set your own uniforms when writing more complex
+shaders. This can be done using the <code>#[]=</code> method:</p>
+
+<pre class="ruby"><code> shader[<span class="sy">:foo</span>] = [<span class="i">0</span>, <span class="i">1</span>, <span class="i">2</span>]
+ shader[<span class="sy">:bar</span>] = <span class="fl">32.0</span>
+</code></pre>
+
+<h2 id="custom-drawables">Custom drawables</h2>
+
+<p>Ray allows you to create your own drawables. You can rewrite Ray::Sprite in
+Ruby, for example. Let’s try that. :)</p>
+
+<pre class="ruby"><code><span class="r">class</span> <span class="cl">CustomSprite</span> &lt; <span class="co">Ray</span>::<span class="co">Drawable</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>That subclass needs to implement its own <code>initialize</code> method to tell Ray how
+many vertices it needs to have. You can do it like this:</p>
+
+<pre class="ruby"><code><span class="r">def</span> <span class="fu">initialize</span>(image)
+  <span class="r">super</span>() <span class="c"># Always call this</span>
+  <span class="pc">self</span>.image = image
+
+  <span class="c"># You need to tell Ray how many vertices you're going to use.</span>
+  <span class="pc">self</span>.vertex_count = <span class="i">4</span>
+<span class="r">end</span>
+
+attr_reader <span class="sy">:image</span>
+
+<span class="r">def</span> <span class="fu">image=</span>(val)
+  <span class="iv">@image</span> = val
+
+  <span class="c"># Whenever your vertices must be updated, call this method.</span>
+  changed!
+<span class="r">end</span>
+</code></pre>
+
+<p>Then, when Ray will try to draw your drawables, it will call two methods:</p>
+
+<ol>
+<li>
+<code>fill_vertices</code>, to push the data to draw. This will (or should) happen
+rarely.</li>
+  <li>
+<code>render</code>, to actually draw. You’ll need low-level OpenGL calls here.</li>
+</ol><p>Here’s how we would do it here:</p>
+
+<pre class="ruby"><code><span class="r">def</span> <span class="fu">fill_vertices</span>
+  <span class="c"># Specify each vertex: position, color, texture coordinate.</span>
+  [
+   <span class="co">Ray</span>::<span class="co">Vertex</span>.new([<span class="i">0</span>,        <span class="i">0</span>],        <span class="co">Ray</span>::<span class="co">Color</span>.white, [<span class="i">0</span>, <span class="i">0</span>]),
+   <span class="co">Ray</span>::<span class="co">Vertex</span>.new([<span class="iv">@image</span>.w, <span class="i">0</span>],        <span class="co">Ray</span>::<span class="co">Color</span>.white, [<span class="i">1</span>, <span class="i">0</span>]),
+   <span class="co">Ray</span>::<span class="co">Vertex</span>.new([<span class="iv">@image</span>.w, <span class="iv">@image</span>.h], <span class="co">Ray</span>::<span class="co">Color</span>.white, [<span class="i">1</span>, <span class="i">1</span>]),
+   <span class="co">Ray</span>::<span class="co">Vertex</span>.new([<span class="i">0</span>,        <span class="iv">@image</span>.h], <span class="co">Ray</span>::<span class="co">Color</span>.white, [<span class="i">0</span>, <span class="i">1</span>]),
+  ]
+<span class="r">end</span>
+
+<span class="c"># Ignore index for now. first is the index of the first vertex we will</span>
+<span class="c"># render.</span>
+<span class="r">def</span> <span class="fu">render</span>(first, index)
+  <span class="c"># Tell OpenGL what texture to use.</span>
+  <span class="iv">@image</span>.bind
+
+  <span class="c"># Draw!</span>
+  <span class="co">Ray</span>::<span class="co">GL</span>.draw_arrays <span class="sy">:triangle_fan</span>, first, <span class="i">4</span>
+<span class="r">end</span>
+</code></pre>
+
+<p>If for some reason, you needed to share vertices (let’s reveal some
+implementation secrets: Ray does this in <code>Ray::Text</code>), you could use
+indices. This way, instead of passing the same vertex twice, you’d pass the
+index of that vertex twice.</p>
+
+<pre class="ruby"><code><span class="r">def</span> <span class="fu">initialize</span>(image)
+  <span class="c"># Same as before</span>
+
+  <span class="c"># Just a test. draw it using two triangles.</span>
+  <span class="pc">self</span>.index_count = <span class="i">6</span>
+<span class="r">end</span>
+
+<span class="c"># fill_vertices doesn't change</span>
+
+<span class="c"># first is the same thing as in render</span>
+<span class="r">def</span> <span class="fu">fill_indices</span>(first)
+  <span class="co">Ray</span>::<span class="co">GL</span>::<span class="co">IntArray</span>.new(first, first + <span class="i">1</span>, first + <span class="i">2</span>, first + <span class="i">3</span>,
+                        first, first + <span class="i">2</span>)
+<span class="r">end</span>
+
+
+<span class="c"># Now, we'll ignore first. Instead, we'll use index with draw_elements.</span>
+<span class="r">def</span> <span class="fu">render</span>(first, index)
+  <span class="co">Ray</span>::<span class="co">GL</span>.draw_elements <span class="sy">:triangles</span>, <span class="i">6</span>, index
+<span class="r">end</span>
+</code></pre>
+
+<p>Notice this class gets all the transformations other drawables have for free:</p>
+
+<pre class="ruby"><code> custom_sprite.pos = [<span class="i">100</span>, <span class="i">100</span>] <span class="c"># Just works.</span>
+</code></pre>
+
+<h3 id="custom-vertices">Custom vertices</h3>
+
+<p>Ray allows you to draw anything you want. If you need other vertices than the
+ones it uses (that teapot clearly can’t be created using 2D positions), you can
+create your own vertex type:</p>
+
+<pre class="ruby"><code><span class="c"># You need to specify the name of the attribute, the name it will have in</span>
+<span class="c"># your shader, and  its type:</span>
+<span class="co">Vertex</span> = <span class="co">Ray</span>::<span class="co">GL</span>::<span class="co">Vertex</span>.make [
+  [<span class="sy">:pos</span>,    <span class="s"><span class="dl">"</span><span class="k">in_Position</span><span class="dl">"</span></span>, <span class="sy">:vector3</span>],
+  [<span class="sy">:normal</span>, <span class="s"><span class="dl">"</span><span class="k">in_Normal</span><span class="dl">"</span></span>,   <span class="sy">:vector3</span>],
+  [<span class="sy">:color</span>,  <span class="s"><span class="dl">"</span><span class="k">in_Color</span><span class="dl">"</span></span>,    <span class="sy">:color</span>]
+]
+
+<span class="c"># Vertex is a sub-class of Ray::GL::Vertex. Accessors have been generated</span>
+<span class="c"># automatically.</span>
+</code></pre>
+
+<p>You need to use your own shader, to apply transformations as you need. You must
+also tell it to use your vertex type <em>before</em> linking it (which means, before
+calling compile).</p>
+
+<pre class="ruby"><code>window.shader.apply_vertex <span class="co">Vertex</span>
+window.shader.compile <span class="sy">:vertex</span> =&gt; <span class="s"><span class="dl">"</span><span class="k">your_vertex_shader.glsl</span><span class="dl">"</span></span>
+</code></pre>
+
+<p>Drawables must then inform Ray they will use this vertex type instead of the
+default one:</p>
+
+<pre class="ruby"><code><span class="r">def</span> <span class="fu">initialize</span>
+  <span class="r">super</span> <span class="co">Vertex</span>
+<span class="r">end</span>
+
+<span class="r">def</span> <span class="fu">fill_vertices</span>
+  [<span class="co">Vertex</span>.new([<span class="i">0</span>, <span class="i">10</span>, <span class="i">20</span>], [<span class="i">30</span>, <span class="i">40</span>, <span class="i">50</span>], <span class="co">Ray</span>::<span class="co">Color</span>.green)]
+<span class="r">end</span>
+</code></pre>
+
+<p>Notice that trying to use one of Ray’s drawables with a such shader will simply fail.</p>
+
+<h2 id="audio">Audio</h2>
+<p>Ray has, in addition to its rendering module, an audio module, using which
+sounds can be played.</p>
+
+<p>Sounds are represented using two classes, the first of which is
+<code>Ray::Sound</code>. It loads all the file in memory before playing it.</p>
+
+<pre class="ruby"><code><span class="co">Ray</span>::<span class="co">Sound</span>.new <span class="s"><span class="dl">"</span><span class="k">sound.wav</span><span class="dl">"</span></span>
+</code></pre>
+
+<p>The second one is <code>Ray::Music</code>, which doesn’t need to load the whole file to
+play the music.</p>
+
+<pre class="ruby"><code><span class="co">Ray</span>::<span class="co">Music</span>.new <span class="s"><span class="dl">"</span><span class="k">music.wav</span><span class="dl">"</span></span>
+</code></pre>
+
+<p>The interfaces of those two classes are very similar. Here’s a script allowing
+to play a sound and exiting once it’s done:</p>
+
+<pre class="ruby"><code>require <span class="s"><span class="dl">'</span><span class="k">ray</span><span class="dl">'</span></span>
+
+sound = <span class="co">Ray</span>::<span class="co">Sound</span>.new <span class="pc">ARGV</span>[<span class="i">0</span>]
+sound.play
+sleep sound.duration
+</code></pre>
+
+<p>Sound playback can be paused and resumed or completely stopped:</p>
+
+<pre class="ruby"><code>sound.pause
+sound.play
+
+sound.stop
+</code></pre>
+
+<p>Sounds have others parameters, such as their volume (between 0 and 100) and
+whether they should be played in a loop or just once.</p>
+
+<pre class="ruby"><code> sound.volume = <span class="i">75</span>
+ sound.loop   = <span class="pc">true</span>
+</code></pre>
+
+<p>Sounds (but not music which are never completely loaded into memory) can be kept
+in a cache, just like images:</p>
+
+<pre class="ruby"><code>include <span class="co">Ray</span>::<span class="co">Helper</span>
+
+a = sound <span class="s"><span class="dl">"</span><span class="k">test.wav</span><span class="dl">"</span></span>
+a.equal? sound(<span class="s"><span class="dl">"</span><span class="k">test.wav</span><span class="dl">"</span></span>) <span class="c"># =&gt; true</span>
+</code></pre>
+
+<h3 id="spatialization">Spatialization</h3>
+
+<p>It is possible to give the illusion that a sound is played from a different
+place. All you need to do is setting a positio to your sound:</p>
+
+<pre class="ruby"><code>sound.pos = [<span class="i">0</span>, <span class="fl">0.5</span>, <span class="i">10</span>]
+</code></pre>
+
+<p>The listener also has a position that can be changed:</p>
+
+<pre class="ruby"><code><span class="co">Ray</span>::<span class="co">Audio</span>.pos += [<span class="i">3</span>, <span class="i">4</span>, <span class="i">5</span>]
+</code></pre>
+    </div>
+
+    <div id="sidebar">
+      <h2><a href="/index.html">Home</a></h2>
+
+      <h2>Sons récents</h2>
+      <ul>
+        
+          <li><a href="/posts/brainfuck.html">Brainfuck on Rubinius</a></li>
+        
+          <li><a href="/posts/plugins.html">Plugins in Ruby</a></li>
+        
+          <li><a href="/posts/debugger.html">Rubinius Debugging API</a></li>
+        
+      </ul>
+
+      <h2>Projets</h2>
+      <ul>
+        
+          <li><a href="/projects/ray.html">Ray</a></li>
+        
+      </ul>
+
+      <h2>Moi</h2>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+      </ul>
+    </div>
+  </body>
+</html>

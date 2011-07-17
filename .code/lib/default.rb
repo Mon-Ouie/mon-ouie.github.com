@@ -45,11 +45,9 @@ def item_by_id(id)
 end
 
 class Post
-  @all = nil
-
   class << self
     def all(items)
-      @all = items.select { |i|
+      items.select { |i|
         i.identifier =~ %r{^/posts/}
       }.map { |item| new(item) }.sort do |a, b|
         b.creation_time <=> a.creation_time
@@ -83,5 +81,35 @@ class Post
 
   def creation_time
     @time ||= Time.parse(@item[:now])
+  end
+end
+
+class Project
+  class << self
+    def all(items)
+      items.select { |i|
+        i.identifier =~ %r{^/projects/}
+      }.map { |item| new(item) }
+    end
+
+    def of(item)
+      new(item) if item.identifier =~ %r{^/projects/}
+    end
+  end
+
+  def initialize(item)
+    @item = item
+  end
+
+  def url
+    @item.reps.first.path
+  end
+
+  def link
+    link_to title, @item
+  end
+
+  def title
+    @item[:title]
   end
 end

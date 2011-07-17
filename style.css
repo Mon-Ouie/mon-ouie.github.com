@@ -156,3 +156,20 @@ pre {
   color: #fff;
   border-color: #fff;
 }
+
+table {
+  border-style: solid;
+  border-width: 2px;
+
+  background-color: #fafafa;
+  border-color: #7c7c7c;
+
+  border-collapse: collapse;
+
+  margin-bottom: 10px;
+}
+
+td, th {
+  border: 1px solid #7c7c7c;
+  padding: 2px;
+}

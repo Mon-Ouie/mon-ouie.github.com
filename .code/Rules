@@ -15,7 +15,18 @@ compile '/stylesheet/' do
   # don’t filter or layout
 end
 
+compile '/images/*' do
+  # idem
+end
+
 compile '/posts/*' do
+  filter :kramdown
+  filter :colorize_syntax
+
+  layout 'default'
+end
+
+compile '/projects/*' do
   filter :kramdown
   filter :colorize_syntax
 
@@ -26,7 +37,7 @@ compile '/feed/' do
   filter :eval
 end
 
-compile '*' do
+compile '*'do
   filter :erb
   layout 'default'
 end
@@ -35,8 +46,16 @@ route '/stylesheet/' do
   '/style.css'
 end
 
+route '/images/*' do
+  "/images/#{File.basename(item.identifier)}.png"
+end
+
 route '/posts/*' do
   "/posts/#{File.basename(item.identifier)}.html"
+end
+
+route '/projects/*' do
+  "/projects/#{File.basename(item.identifier)}.html"
 end
 
 route '/feed/' do
