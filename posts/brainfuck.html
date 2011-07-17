@@ -13,6 +13,8 @@
   <body>
     <div id="main">
       
+
+      
         <h1>Brainfuck on Rubinius</h1>
 
         <div id="post-date">
@@ -111,6 +113,7 @@ we reset the position counter and generate the <code>PosVar</code>; same with <c
           generate_pos_variation(ret, pos_var)
           pos_var  = <span class="i">0</span>
           val_var -= <span class="i">1</span>
+
         <span class="r">when</span> <span class="s"><span class="dl">'</span><span class="k">&gt;</span><span class="dl">'</span></span>
           generate_val_variation(ret, val_var)
           val_var  = <span class="i">0</span>
@@ -292,7 +295,7 @@ as constants to make the code clearer.</p>
 <h3 id="astnode">AST::Node</h3>
 
 <p>We’ll need to change the value of the buffer quite often, so writing a mixin to
-generate code used for this will help us to avoid repititons.</p>
+generate code used for this will help us to avoid repititions.</p>
 
 <pre class="ruby"><code><span class="r">module</span> <span class="cl">Brainfuck</span>
   <span class="r">module</span> <span class="cl">AST</span>
@@ -519,7 +522,7 @@ firstly, going from Brainfuck to AST, then, from AST to bytecode.</p>
 </code></pre>
 
 <p>To trigger those steps, we’ll just create or compiler class, but a very simple
-one: we’ll just create an instance to go from Brainfuck to a compiled methods.</p>
+one: we’ll just create an instance to go from Brainfuck to a compiled method.</p>
 
 <pre class="ruby"><code><span class="r">module</span> <span class="cl">Brainfuck</span>
   <span class="r">class</span> <span class="cl">Compiler</span> &lt; <span class="co">Rubinius</span>::<span class="co">Compiler</span>
@@ -569,6 +572,41 @@ Hello World!
 <p>Now you can have fun and run complex scripts like
 <a href="http://pascal.cormier.free.fr/gbf/tests/out.bf">this one</a> on the Rubinius
 VM. :)</p>
+
+      
+        <div id="disqus_thread">
+        </div>
+
+        <script type="text/javascript">
+          var site_root = 'http://mon-ouie.github.com';
+
+          var disqus_shortname  = 'mon-ouie';
+          var disqus_identifier = '/posts/brainfuck.html';
+          var disqus_url        = site_root + '/posts/brainfuck.html';
+          var disqus_title      = 'Brainfuck on Rubinius';
+          var disqus_developer  = 0;
+
+          (function() {
+            var dsq   = document.createElement('script');
+            dsq.type  = 'text/javascript';
+            dsq.async = true;
+
+            dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+
+            (document.getElementsByTagName('head')[0] ||
+             document.getElementsByTagName('body')[0]).appendChild(dsq);
+          })();
+        </script>
+
+        <noscript>
+          Please enable JavaScript to view
+          the <a href="http://disqus.com/?ref_noscript">comments powered by
+            Disqus.</a>
+        </noscript>
+
+        <a href="http://disqus.com" class="dsq-brlink">blog comments powered
+          by <span class="logo-disqus">Disqus</span></a>
+      
     </div>
 
     <div id="sidebar">

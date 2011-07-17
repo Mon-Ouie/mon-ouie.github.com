@@ -12,7 +12,9 @@
 
   <body>
     <div id="main">
-      <% if post = Post.of(@item) %>
+      <% post = Post.of(@item) %>
+
+      <% if post %>
         <h1><%= post.title %></h1>
 
         <div id="post-date">
@@ -23,6 +25,41 @@
       <% end %>
 
       <%= yield %>
+
+      <% if post %>
+        <div id="disqus_thread">
+        </div>
+
+        <script type="text/javascript">
+          var site_root = 'http://mon-ouie.github.com';
+
+          var disqus_shortname  = 'mon-ouie';
+          var disqus_identifier = '<%= post.url %>';
+          var disqus_url        = site_root + '<%= post.url %>';
+          var disqus_title      = '<%= post.title %>';
+          var disqus_developer  = 0;
+
+          (function() {
+            var dsq   = document.createElement('script');
+            dsq.type  = 'text/javascript';
+            dsq.async = true;
+
+            dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+
+            (document.getElementsByTagName('head')[0] ||
+             document.getElementsByTagName('body')[0]).appendChild(dsq);
+          })();
+        </script>
+
+        <noscript>
+          Please enable JavaScript to view
+          the <a href="http://disqus.com/?ref_noscript">comments powered by
+            Disqus.</a>
+        </noscript>
+
+        <a href="http://disqus.com" class="dsq-brlink">blog comments powered
+          by <span class="logo-disqus">Disqus</span></a>
+      <% end %>
     </div>
 
     <div id="sidebar">
