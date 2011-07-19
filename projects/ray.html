@@ -374,7 +374,7 @@ drawn. However, Ray also provides a default font, to be able to draw text even
 without having a font file.</p>
 
 <pre class="ruby"><code>font <span class="s"><span class="dl">"</span><span class="k">foo.tttf</span><span class="dl">"</span></span> <span class="c"># cached</span>
-<span class="co">Ray</span>::<span class="co">Fond</span>.default
+<span class="co">Ray</span>::<span class="co">Font</span>.default
 </code></pre>
 
 <p>A helper method to create text is available; it is similar to <code>#sprite</code>:</p>
@@ -693,7 +693,7 @@ to get automatic updates:</p>
 
 <p>There are also two methods you can call once you started your animation to
 change how it will be executed: <code>loop!</code>, which will cause it to be repeated
-over and over, and <code>bounce!</code>, which will cause the animation and a an
+over and over, and <code>bounce!</code>, which will cause the animation and an
 animation reversing its effect to alternate.</p>
 
 <h3 id="creating-custom-animations">Creating custom animations</h3>
@@ -702,11 +702,11 @@ animation reversing its effect to alternate.</p>
 applied to the animation, we’d have to implement it manually.</p>
 
 <pre class="ruby"><code><span class="r">class</span> <span class="cl">AcceleratedTranslation</span> &lt; <span class="co">Ray</span>::<span class="co">Animation</span>
-  register_for <span class="sy">:accelerated_transation</span>
+  register_for <span class="sy">:accelerated_translation</span>
 <span class="r">end</span>
 </code></pre>
 
-<p>This is enough to define <code>Ray::Helper#accelerated_transation</code>, which returns
+<p>This is enough to define <code>Ray::Helper#accelerated_translation</code>, which returns
 an instance of our class. It also calls <code>setup</code> on our object to define
 parameters which don’t depend on our target:</p>
 
@@ -727,7 +727,7 @@ parameters which don’t depend on our target:</p>
 <span class="r">end</span>
 </code></pre>
 
-<p>This code uses the hash we pass to <code>accelerated_transation</code> to define
+<p>This code uses the hash we pass to <code>accelerated_translation</code> to define
 parameters we’ll use later.</p>
 
 <p>Every time the animation is started, it needs to note the initial position of
@@ -765,7 +765,7 @@ and 1 using the <code>progression</code> method.</p>
     <span class="iv">@red_rect</span>  = <span class="co">Ray</span>::<span class="co">Polygon</span>.rectangle([<span class="i">-25</span>, <span class="i">-25</span>, <span class="i">50</span>, <span class="i">50</span>], <span class="co">Ray</span>::<span class="co">Color</span>.red)
     <span class="iv">@blue_rect</span> = <span class="co">Ray</span>::<span class="co">Polygon</span>.rectangle([<span class="i">-25</span>, <span class="i">-25</span>, <span class="i">50</span>, <span class="i">50</span>], <span class="co">Ray</span>::<span class="co">Color</span>.blue)
 
-    animations &lt;&lt; accelerated_transation(<span class="sy">:of</span> =&gt; [<span class="i">200</span>, <span class="i">400</span>], <span class="sy">:speed</span> =&gt; <span class="i">0</span>,
+    animations &lt;&lt; accelerated_translation(<span class="sy">:of</span> =&gt; [<span class="i">200</span>, <span class="i">400</span>], <span class="sy">:speed</span> =&gt; <span class="i">0</span>,
                                          <span class="sy">:duration</span> =&gt; <span class="i">3</span>).start(<span class="iv">@red_rect</span>)
     animations &lt;&lt; translation(<span class="sy">:of</span> =&gt; [<span class="i">200</span>, <span class="i">400</span>], <span class="sy">:duration</span> =&gt; <span class="i">3</span>).
       start(<span class="iv">@blue_rect</span>)
@@ -1007,6 +1007,14 @@ shaders. This can be done using the <code>#[]=</code> method:</p>
  shader[<span class="sy">:bar</span>] = <span class="fl">32.0</span>
 </code></pre>
 
+<p>Ray allows to set uniforms of many types, but not arrays that contain more than
+4 floats, or that contain something else than float. You’ll need to fill them
+manually:</p>
+
+<pre class="ruby"><code><span class="c"># Assuming array is an array of vec3.</span>
+shader[<span class="s"><span class="dl">"</span><span class="k">array[2]</span><span class="dl">"</span></span>] = [<span class="fl">0.1</span>, <span class="fl">2.1</span>, <span class="fl">3.4</span>]
+</code></pre>
+
 <h2 id="custom-drawables">Custom drawables</h2>
 
 <p>Ray allows you to create your own drawables. You can rewrite Ray::Sprite in
@@ -1138,7 +1146,7 @@ default one:</p>
 <span class="r">end</span>
 </code></pre>
 
-<p>Notice that trying to use one of Ray’s drawables with a such shader will simply fail.</p>
+<p>Notice that trying to use one of Ray’s drawables with such a shader will simply fail.</p>
 
 <h2 id="audio">Audio</h2>
 <p>Ray has, in addition to its rendering module, an audio module, using which
@@ -1193,7 +1201,7 @@ a.equal? sound(<span class="s"><span class="dl">"</span><span class="k">test.wav
 <h3 id="spatialization">Spatialization</h3>
 
 <p>It is possible to give the illusion that a sound is played from a different
-place. All you need to do is setting a positio to your sound:</p>
+place. All you need to do is setting a position to your sound:</p>
 
 <pre class="ruby"><code>sound.pos = [<span class="i">0</span>, <span class="fl">0.5</span>, <span class="i">10</span>]
 </code></pre>
