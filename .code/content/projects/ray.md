@@ -1013,6 +1013,15 @@ Sounds are represented using two classes, the first of which is
     Ray::Sound.new "sound.wav"
 {:.ruby}
 
+Notice that Ray caches the buffer used by the sound, but not the sound
+itself. This allows to play the same sound twice at the same time (and possibly
+from different places):
+
+    sound("BAAAAAAAAM.wav").play
+    sleep 0.1
+    sound("BAAAAAAAAM.wav").play
+{:.ruby}
+
 The second one is ``Ray::Music``, which doesn't need to load the whole file to
 play the music.
 
@@ -1042,15 +1051,6 @@ whether they should be played in a loop or just once.
 
      sound.volume = 75
      sound.loop   = true
-{:.ruby}
-
-Sounds (but not music which are never completely loaded into memory) can be kept
-in a cache, just like images:
-
-    include Ray::Helper
-
-    a = sound "test.wav"
-    a.equal? sound("test.wav") # => true
 {:.ruby}
 
 ### Spatialization
