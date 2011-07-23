@@ -1158,6 +1158,15 @@ sounds can be played.</p>
 <pre class="ruby"><code><span class="co">Ray</span>::<span class="co">Sound</span>.new <span class="s"><span class="dl">"</span><span class="k">sound.wav</span><span class="dl">"</span></span>
 </code></pre>
 
+<p>Notice that Ray caches the buffer used by the sound, but not the sound
+itself. This allows to play the same sound twice at the same time (and possibly
+from different places):</p>
+
+<pre class="ruby"><code>sound(<span class="s"><span class="dl">"</span><span class="k">BAAAAAAAAM.wav</span><span class="dl">"</span></span>).play
+sleep <span class="fl">0.1</span>
+sound(<span class="s"><span class="dl">"</span><span class="k">BAAAAAAAAM.wav</span><span class="dl">"</span></span>).play
+</code></pre>
+
 <p>The second one is <code>Ray::Music</code>, which doesn’t need to load the whole file to
 play the music.</p>
 
@@ -1187,15 +1196,6 @@ whether they should be played in a loop or just once.</p>
 
 <pre class="ruby"><code> sound.volume = <span class="i">75</span>
  sound.loop   = <span class="pc">true</span>
-</code></pre>
-
-<p>Sounds (but not music which are never completely loaded into memory) can be kept
-in a cache, just like images:</p>
-
-<pre class="ruby"><code>include <span class="co">Ray</span>::<span class="co">Helper</span>
-
-a = sound <span class="s"><span class="dl">"</span><span class="k">test.wav</span><span class="dl">"</span></span>
-a.equal? sound(<span class="s"><span class="dl">"</span><span class="k">test.wav</span><span class="dl">"</span></span>) <span class="c"># =&gt; true</span>
 </code></pre>
 
 <h3 id="spatialization">Spatialization</h3>
