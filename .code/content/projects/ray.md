@@ -549,6 +549,66 @@ quite easy to maintain. Ray allows to separate them in different classes:
     end
 {:.ruby}
 
+### Managing scene stack
+
+You can push scenes to a stack and pop them from it using ``push_scene`` and
+``pop_scene``. This is however not enough in some cases. You may for instance
+want to run a scene and come back to where you were before, without running
+setup and register again. This can be done with ``run_scene``, which won't
+return until the new scene is done running:
+
+     on :key_press, key(:m) do
+       run_scene :menu # won't return until the end of the menu scene
+     end
+
+     on :key_press, key(:p) do
+       push_scene :pause # returns instantaneously
+     end
+{:.ruby}
+
+### Event groups
+
+Another feature to keep in mind is the ability to group evenets: you may want
+one scene to react differently to events depending on its state. Here's an
+example:
+
+     event_group :move do
+       [:up, :down, :left, :right].each do |dir|
+         on :key_press, key(dir) do # Move the player
+           @player.move_towards dir
+         end
+       end
+
+       on :key_press, key(:space) do
+         @menu.show # Show the menu
+
+         # Toggle groups
+         enable_event_group  :select
+         disable_event_group :move
+       end
+     end
+
+     event_group :select do
+       on :key_press, key(:up) do # Change selection
+         @menu.previous
+       end
+
+       on :key_press, key(:down) do
+         @menu.next
+       end
+
+       on :key_press, key(:space) do
+         @menu.hide # Hide the menu
+
+         # Toggle groups
+         disable_event_group :select
+         enable_event_group  :move
+       end
+     end
+
+     disable_event_group :select # Disable selection by default
+{:.ruby}
+
 Animations
 ----------
 

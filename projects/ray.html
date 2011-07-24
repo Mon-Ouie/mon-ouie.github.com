@@ -647,6 +647,66 @@ quite easy to maintain. Ray allows to separate them in different classes:</p>
 <span class="r">end</span>
 </code></pre>
 
+<h3 id="managing-scene-stack">Managing scene stack</h3>
+
+<p>You can push scenes to a stack and pop them from it using <code>push_scene</code> and
+<code>pop_scene</code>. This is however not enough in some cases. You may for instance
+want to run a scene and come back to where you were before, without running
+setup and register again. This can be done with <code>run_scene</code>, which won’t
+return until the new scene is done running:</p>
+
+<pre class="ruby"><code> on <span class="sy">:key_press</span>, key(<span class="sy">:m</span>) <span class="r">do</span>
+   run_scene <span class="sy">:menu</span> <span class="c"># won't return until the end of the menu scene</span>
+ <span class="r">end</span>
+
+ on <span class="sy">:key_press</span>, key(<span class="sy">:p</span>) <span class="r">do</span>
+   push_scene <span class="sy">:pause</span> <span class="c"># returns instantaneously</span>
+ <span class="r">end</span>
+</code></pre>
+
+<h3 id="event-groups">Event groups</h3>
+
+<p>Another feature to keep in mind is the ability to group evenets: you may want
+one scene to react differently to events depending on its state. Here’s an
+example:</p>
+
+<pre class="ruby"><code> event_group <span class="sy">:move</span> <span class="r">do</span>
+   [<span class="sy">:up</span>, <span class="sy">:down</span>, <span class="sy">:left</span>, <span class="sy">:right</span>].each <span class="r">do</span> |dir|
+     on <span class="sy">:key_press</span>, key(dir) <span class="r">do</span> <span class="c"># Move the player</span>
+       <span class="iv">@player</span>.move_towards dir
+     <span class="r">end</span>
+   <span class="r">end</span>
+
+   on <span class="sy">:key_press</span>, key(<span class="sy">:space</span>) <span class="r">do</span>
+     <span class="iv">@menu</span>.show <span class="c"># Show the menu</span>
+
+     <span class="c"># Toggle groups</span>
+     enable_event_group  <span class="sy">:select</span>
+     disable_event_group <span class="sy">:move</span>
+   <span class="r">end</span>
+ <span class="r">end</span>
+
+ event_group <span class="sy">:select</span> <span class="r">do</span>
+   on <span class="sy">:key_press</span>, key(<span class="sy">:up</span>) <span class="r">do</span> <span class="c"># Change selection</span>
+     <span class="iv">@menu</span>.previous
+   <span class="r">end</span>
+
+   on <span class="sy">:key_press</span>, key(<span class="sy">:down</span>) <span class="r">do</span>
+     <span class="iv">@menu</span>.next
+   <span class="r">end</span>
+
+   on <span class="sy">:key_press</span>, key(<span class="sy">:space</span>) <span class="r">do</span>
+     <span class="iv">@menu</span>.hide <span class="c"># Hide the menu</span>
+
+     <span class="c"># Toggle groups</span>
+     disable_event_group <span class="sy">:select</span>
+     enable_event_group  <span class="sy">:move</span>
+   <span class="r">end</span>
+ <span class="r">end</span>
+
+ disable_event_group <span class="sy">:select</span> <span class="c"># Disable selection by default</span>
+</code></pre>
+
 <h2 id="animations">Animations</h2>
 
 <p>If you want to move an object, you can just write something like:</p>
