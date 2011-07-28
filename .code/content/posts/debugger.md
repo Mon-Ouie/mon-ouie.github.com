@@ -13,8 +13,8 @@ itself. MRI has a tracer API, also implemented by JRuby:
 
 This allows to trace whatever happens, and to stop the process to debug it. One
 can implement a debugger with this, for instance as debug.rb from stdlib
-does. Rubinius, however does not implement a such API. But Rubinius being all
-Ruby, one can probably write a such thing — or a better way one — just in Ruby
+does. Rubinius, however does not implement such an API. But Rubinius being all
+Ruby, one can probably write such a thing — or a better way one — just in Ruby
 :)
 
 It is indeed posible to write a debugger for Rubinius in Ruby. Rubinius even
@@ -217,7 +217,7 @@ the debugged program, you can run arbitrary code in its context to get any
 information you may want about it.
 
 We don't have a binding object now, but that won't stop us! We have location
-objects, which can be used to get a such binding as needed.
+objects, which can be used to get such a binding as needed.
 
     class Frame
       def initialize(loc)
@@ -274,7 +274,7 @@ Defered breakpoints
 -------------------
 
 Breaking when you already have a method object is easy. However, when you do not
-have a such object — because the method isn't defined yet — it is not as easy to
+have such an object — because the method isn't defined yet — it is not as easy to
 do. Still, it is not hard. :)
 
 Since the method isn't defined, you need to check if it has been defined
@@ -630,6 +630,6 @@ Conlusion
 
 There's more to know to write a real debugger, and the debugger provided by
 Rubinius uses more than the features I explained. This can still be enough to
-understand how to create a such debugger, and how the one that Rubinius contains
+understand how to create such a debugger, and how the one that Rubinius contains
 basically works — and you can just read its source code if you want to know
 more.

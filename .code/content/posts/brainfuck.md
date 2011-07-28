@@ -3,7 +3,7 @@ title: Brainfuck on Rubinius
 now: Wed Jun 29 08:31:23 2011
 ---
 
-Brainfuck is a very powerful and useful languages — surely, millions of people
+Brainfuck is a very powerful and useful language — surely, millions of people
 write their shell scripts in Brainfuck. The simplicity of its syntax makes it
 even more powerful — only 8 instructions.
 [this is if you don't know Brainfuck](http://en.wikipedia.org/wiki/Brainfuck).
@@ -19,8 +19,7 @@ The parser
 As I said, Brainfuck is very complex. We must definitely use a parser to get AST
 nodes out of Brainfuck code. But I'll still do it by hand, regardless of
 fear. Not only would I dare to do it with ``String#[]``, I will require one of
-those rusted classes from stdlib — one of the underused
-ones. ``StringScanner``.
+those rusted classes from stdlib — one of the underused ones. ``StringScanner``.
 
 So, let's write one of those parsers. The first thing we need is a bunch of AST
 nodes. We will only have a few instructions: printing the current character
