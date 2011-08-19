@@ -1,0 +1,205 @@
+<!DOCTYPE HTML>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Moi, mon ouïe - Ray 0.2.0</title>
+    <link rel="stylesheet" type="text/css" href="/style.css" media="screen">
+    <link rel="alternate"  type="application/atom+xml"
+          title="Moi, mon ouïe"
+          href="/feed.atom"/>
+    <meta name="generator" content="nanoc 3.1.7">
+  </head>
+
+  <body>
+    <div id="main">
+      
+
+      
+        <h1>Ray 0.2.0</h1>
+
+        <div id="post-date">
+          Friday 19 August 2011
+        </div>
+      
+
+      <p>Hey and happy Whynight (at least, I can guarantee it is not day here),</p>
+
+<p>Here’s a new version of my ruby game library — fixing bugs that I had not met,
+adding new fun features, and improving the internals. Here’s a list of those new
+features. :)</p>
+
+<p>It can still be installed with just <code>gem install ray</code>.</p>
+
+<h2 id="shader-generation">Shader generation</h2>
+
+<p>Shaders are very useful, but they’re not written in Ruby. Having a DSL to
+generate them would help. Here’s what I have com up with:</p>
+
+<pre class="ruby"><code>effect_generator { |gen|
+  gen &lt;&lt; grayscale
+}.build(window.shader)
+</code></pre>
+
+<p>The above code compiles a fragment shader to render images in shades of
+gray. The output isn’t quite as efficient as a hand-written shader, but it’s
+quite readable:</p>
+
+<pre class="c"><code><span class="pp">#version</span> <span class="i">110</span>
+
+varying vec4 var_Color;
+varying vec2 var_TexCoord;
+
+uniform sampler2D in_Texture;
+uniform <span class="pt">bool</span> in_TextureEnabled;
+
+
+<span class="c">/* Headers */</span>
+
+
+<span class="c">/* Structs */</span>
+
+<span class="r">struct</span> ray_grayscale {
+  <span class="pt">bool</span> enabled;
+  vec3 ratio;
+};
+
+<span class="c">/* Effects parameters */</span>
+uniform ray_grayscale grayscale;
+
+<span class="c">/* Functions */</span>
+vec4 do_grayscale(ray_grayscale args, vec4 color) {
+  <span class="pt">float</span> gray = dot(color.rgb, args.ratio);
+  <span class="r">return</span> vec4(gray, gray, gray, color.a);
+}
+
+<span class="di">void</span> main() {
+  <span class="c">/* Apply default value */</span>
+  vec4 color;
+  <span class="r">if</span> (in_TextureEnabled)
+    color = texture2D(in_Texture, var_TexCoord) * var_Color;
+  <span class="r">else</span>
+    color = var_Color;
+
+  <span class="r">if</span> (grayscale.enabled)
+    color = do_grayscale(grayscale, color);
+
+  gl_FragColor = color;
+}
+</code></pre>
+
+<p>There aren’t many effects in Ray yet, but it’s easy to write one in a few lines
+ of code (even though there needs to be GLSL code there).</p>
+
+<h2 id="better-control-over-opengl-contexts">Better control over OpenGL contexts</h2>
+
+<p>The OpenGL context can now be configured before it is created. This allows to
+ask Ray to use the OpenGL core profile for instance, which is, on some platforms
+(say, Mac OS X), the only way to get OpenGL 3.</p>
+
+<p>You can also debug OpenGL calls — which is something quite useful for me at
+least:</p>
+
+<pre class="ruby"><code><span class="co">Ray</span>::<span class="co">GL</span>.debug = <span class="pc">true</span>
+<span class="co">Ray</span>::<span class="co">GL</span>.callback = proc <span class="r">do</span> |source, type, _, severity, msg|
+  puts <span class="s"><span class="dl">"</span><span class="k">[</span><span class="il"><span class="idl">#{</span>source<span class="idl">}</span></span><span class="k">][</span><span class="il"><span class="idl">#{</span>type<span class="idl">}</span></span><span class="k">][</span><span class="il"><span class="idl">#{</span>severity<span class="idl">}</span></span><span class="k">] </span><span class="il"><span class="idl">#{</span>msg<span class="idl">}</span></span><span class="dl">"</span></span>
+<span class="r">end</span>
+</code></pre>
+
+<h2 id="geometry-instancing">Geometry instancing</h2>
+
+<p>Something useful when playing with OpenGL and Ray, you can use OpenGL’s geometry
+instancing (assuming it is available) to render similar objects many times —
+like, drawing an army of cubes.</p>
+
+<h2 id="faster-pixel-copies">Faster pixel copies</h2>
+
+<p>Ray can now use OpenGL’s features to copy pixels asynchronously, just in case
+you’d need to copy images often (either from another image or from the
+framebuffer):</p>
+
+<pre class="ruby"><code> bus = <span class="co">Ray</span>::<span class="co">PixelBus</span>.new <span class="i">1024</span> <span class="c"># can store 1024 pixels (4KB)</span>
+ bus.pull window
+ bus.push image
+
+ copy = bus.copy image
+</code></pre>
+
+<h2 id="lower-level-opengl-access">Lower-level OpenGL access</h2>
+
+<p>You can now access the ID of (some) OpenGL objects created by Ray. This is
+useful to play with OpenGL, and also (and that’s actually the reason I added
+this) OpenCL, which can use OpenGL’s textures and buffers.</p>
+
+<h2 id="screenshot">Screenshot!</h2>
+
+<p>Here’s an actual game written with Ray,
+<a href="https://github.com/Spooner/zed_and_ginger">Zed and Ginger</a>:</p>
+
+<p><img src="http://f.cl.ly/items/2h2W3I3a3M1M0Q142B3l/zed_and_ginger_17-2-player-cameras_small.png" alt="Z&amp;G"></p>
+
+      
+        <div id="disqus_thread">
+        </div>
+
+        <script type="text/javascript">
+          var site_root = 'http://mon-ouie.github.com';
+
+          var disqus_shortname  = 'mon-ouie';
+          var disqus_identifier = '/posts/ray-0.html';
+          var disqus_url        = site_root + '/posts/ray-0.html';
+          var disqus_title      = 'Ray 0.2.0';
+          var disqus_developer  = 0;
+
+          (function() {
+            var dsq   = document.createElement('script');
+            dsq.type  = 'text/javascript';
+            dsq.async = true;
+
+            dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+
+            (document.getElementsByTagName('head')[0] ||
+             document.getElementsByTagName('body')[0]).appendChild(dsq);
+          })();
+        </script>
+
+        <noscript>
+          Please enable JavaScript to view
+          the <a href="http://disqus.com/?ref_noscript">comments powered by
+            Disqus.</a>
+        </noscript>
+
+        <a href="http://disqus.com" class="dsq-brlink">blog comments powered
+          by <span class="logo-disqus">Disqus</span></a>
+      
+    </div>
+
+    <div id="sidebar">
+      <h2><a href="/index.html">Home</a></h2>
+
+      <h2>Sons récents</h2>
+      <ul>
+        
+          <li><a href="/posts/ray-0.html">Ray 0.2.0</a></li>
+        
+          <li><a href="/posts/brainfuck.html">Brainfuck on Rubinius</a></li>
+        
+          <li><a href="/posts/plugins.html">Plugins in Ruby</a></li>
+        
+          <li><a href="/posts/debugger.html">Rubinius Debugging API</a></li>
+        
+      </ul>
+
+      <h2>Projets</h2>
+      <ul>
+        
+          <li><a href="/projects/ray.html">Ray</a></li>
+        
+      </ul>
+
+      <h2>Moi</h2>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+      </ul>
+    </div>
+  </body>
+</html>
